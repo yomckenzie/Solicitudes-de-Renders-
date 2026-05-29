@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Diseño de Corners</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .info-box strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🏪 Diseño de Corners</h1>
+        <p class="subtitle">Sistema de Solicitudes de Renders</p>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="correo">Correo Corporativo</label>
+                <input 
+                    type="email" 
+                    id="correo" 
+                    name="correo" 
+                    placeholder="tu.nombre@empresa.com"
+                    required
+                >
+            </div>
+
+            <button type="submit" id="btnLogin">Ingresar</button>
+            
+            <p class="error-message" id="errorMessage"></p>
+        </form>
+
+        <div class="info-box">
+            <strong>Información:</strong><br>
+            • Usa tu correo corporativo para acceder<br>
+            • Podrás crear nuevas solicitudes<br>
+            • Harás seguimiento de tus diseños<br>
+            • Recibirás notificaciones por correo
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const correo = document.getElementById('correo').value;
+            const btnLogin = document.getElementById('btnLogin');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Validar formato de correo
+            if (!correo || !correo.includes('@')) {
+                errorMessage.textContent = 'Por favor ingresa un correo válido';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            btnLogin.disabled = true;
+            btnLogin.textContent = 'Verificando...';
+            errorMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ correo }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Guardar token en sessionStorage
+                    sessionStorage.setItem('token', data.token);
+                    sessionStorage.setItem('correo', data.correo);
+                    
+                    // Redirigir al formulario
+                    window.location.href = '/formulario?correo=' + encodeURIComponent(data.correo);
+                } else {
+                    errorMessage.textContent = data.message || 'Error al iniciar sesión';
+                    errorMessage.style.display = 'block';
+                    btnLogin.disabled = false;
+                    btnLogin.textContent = 'Ingresar';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorMessage.textContent = 'Error de conexión. Intente nuevamente.';
+                errorMessage.style.display = 'block';
+                btnLogin.disabled = false;
+                btnLogin.textContent = 'Ingresar';
+            }
+        });
+    </script>
+</body>
+</html>
