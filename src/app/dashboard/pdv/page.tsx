@@ -287,23 +287,19 @@ export default function PdvPage() {
             </div>
 
             <div className="px-6 py-5 space-y-6 max-h-96 overflow-y-auto">
-              {/* Info básica */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Marca</p>
-                  <p className="font-semibold">{MARCA_LABELS[detailPdv.pdv.marca as keyof typeof MARCA_LABELS] ?? detailPdv.pdv.marca}</p>
+              {/* Info básica - Cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs text-blue-600 font-semibold">MARCA</p>
+                  <p className="font-bold text-gray-800 text-sm mt-1">{MARCA_LABELS[detailPdv.pdv.marca as keyof typeof MARCA_LABELS] ?? detailPdv.pdv.marca}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Estado</p>
-                  <BadgeEstadoEspacio estado={detailPdv.pdv.estado} />
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                  <p className="text-xs text-purple-600 font-semibold">ESTADO</p>
+                  <div className="mt-1"><BadgeEstadoEspacio estado={detailPdv.pdv.estado} /></div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Impulsador</p>
-                  <p className="font-semibold">{detailPdv.pdv.impulsador ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Espacio</p>
-                  <p className="font-semibold">{detailPdv.pdv.espacio === 1 ? "Básico" : detailPdv.pdv.espacio === 2 ? "Medio" : "Premium"}</p>
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
+                  <p className="text-xs text-amber-600 font-semibold">ESPACIO</p>
+                  <p className="font-bold text-gray-800 text-sm mt-1">{detailPdv.pdv.espacio === 1 ? "Básico" : detailPdv.pdv.espacio === 2 ? "Medio" : "Premium"}</p>
                 </div>
               </div>
 
@@ -312,30 +308,49 @@ export default function PdvPage() {
                 <p className="text-gray-400 text-sm">Cargando...</p>
               ) : (
                 <>
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-3">Mobiliarios ({detailPdv.totalMobiliarios})</h3>
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-gray-900 text-lg">🛋️ Mobiliarios</h3>
+                      <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">{detailPdv.totalMobiliarios}</span>
+                    </div>
                     {detailPdv.mobiliarios.length === 0 ? (
-                      <p className="text-xs text-gray-400">Sin muebles registrados</p>
+                      <p className="text-xs text-gray-400 bg-gray-50 p-4 rounded-lg text-center">Sin muebles registrados</p>
                     ) : (
-                      <div className="space-y-3 max-h-48 overflow-y-auto">
+                      <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
                         {detailPdv.mobiliarios.map((m: any) => (
-                          <div key={m.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                            <div className="flex justify-between items-start mb-2">
+                          <div key={m.id} className="border-l-4 border-l-blue-500 bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start mb-3">
                               <div>
-                                <p className="text-sm font-medium text-gray-800">{m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)}</p>
-                                <p className="text-xs text-gray-500">{m.categoria} • Cant: {m.cantidad}</p>
+                                <p className="text-sm font-bold text-gray-900">{m.tipo.replace(/_/g, " ").split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{m.categoria === "casual" ? "👕 Casual" : "👗 Interior"} • Cant: <strong>{m.cantidad}</strong></p>
                               </div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.estado === "Actualizado" ? "bg-green-100 text-green-700" : m.estado === "Critico" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                              <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                                m.estado === "Actualizado" ? "bg-green-100 text-green-700" :
+                                m.estado === "Critico" ? "bg-red-100 text-red-700" :
+                                m.estado === "Desactualizado" ? "bg-yellow-100 text-yellow-700" :
+                                "bg-blue-100 text-blue-700"
+                              }`}>
                                 {m.estado}
                               </span>
                             </div>
-                            {m.medidas && <p className="text-xs text-gray-600 font-mono mb-2">📏 {m.medidas}</p>}
+                            {m.medidas && (
+                              <p className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded mb-3 inline-block">
+                                📏 {m.medidas}
+                              </p>
+                            )}
                             {m.imagenes && m.imagenes.length > 0 && (
-                              <div className="flex gap-2">
-                                {m.imagenes.slice(0, 3).map((img: string, i: number) => (
-                                  <img key={i} src={img} alt={`mueble ${i}`} className="w-12 h-12 object-cover rounded border border-gray-300" />
-                                ))}
-                                {m.imagenes.length > 3 && <p className="text-xs text-gray-400 self-center">+{m.imagenes.length - 3}</p>}
+                              <div className="mt-3">
+                                <p className="text-xs text-gray-500 mb-2 font-semibold">Fotos ({m.imagenes.length})</p>
+                                <div className="flex gap-2 flex-wrap">
+                                  {m.imagenes.slice(0, 4).map((img: string, i: number) => (
+                                    <img key={i} src={img} alt={`mueble ${i}`} className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 shadow-sm hover:shadow-md cursor-pointer hover:scale-105 transition-transform" />
+                                  ))}
+                                  {m.imagenes.length > 4 && (
+                                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 border-2 border-dashed border-blue-300 flex items-center justify-center">
+                                      <span className="text-xs font-bold text-blue-600">+{m.imagenes.length - 4}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -347,11 +362,24 @@ export default function PdvPage() {
                   {/* Última visita */}
                   {detailPdv.ultimaVisita && (
                     <div className="border-t border-gray-100 pt-4">
-                      <h3 className="font-semibold text-gray-800 mb-2">Última Visita</h3>
-                      <div className="bg-blue-50 rounded-lg p-3 text-sm">
-                        <p className="text-xs text-gray-500">Impulsador: <strong>{detailPdv.ultimaVisita.usuarios?.nombre}</strong></p>
-                        <p className="text-xs text-gray-500">Fecha: <strong>{new Date(detailPdv.ultimaVisita.fecha).toLocaleDateString("es-PA")}</strong></p>
-                        {detailPdv.ultimaVisita.observacion && <p className="text-xs text-gray-700 mt-1">{detailPdv.ultimaVisita.observacion}</p>}
+                      <h3 className="font-bold text-gray-900 text-lg mb-3">👁️ Última Visita</h3>
+                      <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-lg p-4 border border-cyan-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-xs text-gray-600 font-semibold">📅 {new Date(detailPdv.ultimaVisita.fecha).toLocaleDateString("es-PA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                            {detailPdv.ultimaVisita.observacion && (
+                              <p className="text-xs text-gray-700 mt-2 bg-white rounded px-2 py-1">{detailPdv.ultimaVisita.observacion}</p>
+                            )}
+                          </div>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                            detailPdv.ultimaVisita.estadoEspacio === "Actualizado" ? "bg-green-100 text-green-700" :
+                            detailPdv.ultimaVisita.estadoEspacio === "Critico" ? "bg-red-100 text-red-700" :
+                            detailPdv.ultimaVisita.estadoEspacio === "Desactualizado" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-blue-100 text-blue-700"
+                          }`}>
+                            {detailPdv.ultimaVisita.estadoEspacio}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -359,17 +387,25 @@ export default function PdvPage() {
                   {/* Costos y pagos */}
                   {(detailPdv.cotizaciones.length > 0 || detailPdv.pagos.length > 0) && (
                     <div className="border-t border-gray-100 pt-4">
-                      <h3 className="font-semibold text-gray-800 mb-2">Información de Costos</h3>
-                      {detailPdv.cotizaciones.length > 0 && (
-                        <p className="text-xs text-gray-600 mb-2">
-                          💰 Rango: ${detailPdv.cotizaciones[0]?.cotizacion?.precioMin?.toLocaleString()} - ${detailPdv.cotizaciones[0]?.cotizacion?.precioMax?.toLocaleString()}
-                        </p>
-                      )}
-                      {detailPdv.pagos.length > 0 && (
-                        <p className="text-xs text-gray-600">
-                          ✓ Pagado: ${detailPdv.pagos.reduce((sum: number, p: any) => sum + (p.pago?.monto || 0), 0).toLocaleString()}
-                        </p>
-                      )}
+                      <h3 className="font-bold text-gray-900 text-lg mb-3">💰 Información de Costos</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {detailPdv.cotizaciones.length > 0 && (
+                          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg p-3 border border-yellow-200">
+                            <p className="text-xs text-yellow-600 font-semibold">Rango Presupuesto</p>
+                            <p className="font-bold text-gray-900 text-sm mt-1">
+                              ${detailPdv.cotizaciones[0]?.cotizacion?.precioMin?.toLocaleString()} - ${detailPdv.cotizaciones[0]?.cotizacion?.precioMax?.toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                        {detailPdv.pagos.length > 0 && (
+                          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+                            <p className="text-xs text-green-600 font-semibold">Total Pagado</p>
+                            <p className="font-bold text-gray-900 text-sm mt-1">
+                              ${detailPdv.pagos.reduce((sum: number, p: any) => sum + (p.pago?.monto || 0), 0).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
