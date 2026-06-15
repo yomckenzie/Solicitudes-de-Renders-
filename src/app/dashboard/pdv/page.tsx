@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Search, Plus, MapPin, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { BadgeEstadoEspacio } from "@/components/ui/Badge";
 import { MARCA_LABELS } from "@/types";
 
@@ -31,6 +32,7 @@ const INPUT = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
 
 export default function PdvPage() {
+  const router = useRouter();
   const [pdvs, setPdvs] = useState<Pdv[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -233,7 +235,7 @@ export default function PdvPage() {
               ) : pdvs.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No se encontraron PDVs.</td></tr>
               ) : pdvs.map((pdv) => (
-                <tr key={pdv.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openDetail(pdv)}>
+                <tr key={pdv.id} className="hover:bg-blue-50 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/pdv/${pdv.id}`)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <MapPin size={14} className="text-gray-400" />
