@@ -1,30 +1,83 @@
-import { Search, Filter, Plus, MapPin } from "lucide-react";
-import { BadgeEstadoEspacio } from "@/components/ui/Badge";
-import { EstadoEspacio, Marca, MARCA_LABELS } from "@/types";
+"use client";
 
-// Datos de ejemplo basados en el Excel real
-const pdvEjemplos = [
-  { id: "1", numeroPdv: 1, espacio: 2, provincia: "Panamá", cadena: "Stevens", mallZona: "Albrook", marca: "JohnnyCotton" as Marca, impulsador: "Lorena Pinto", estado: "Critico" as EstadoEspacio },
-  { id: "2", numeroPdv: 2, espacio: 2, provincia: "Panamá", cadena: "Stevens", mallZona: "Alta Plaza", marca: "JohnnyCotton" as Marca, impulsador: "Lorena Pinto", estado: "Actualizado" as EstadoEspacio },
-  { id: "3", numeroPdv: 5, espacio: 2, provincia: "Panamá", cadena: "Stevens", mallZona: "Metromall", marca: "JohnnyCotton" as Marca, impulsador: "Alcibiades Tenorio", estado: "Normal" as EstadoEspacio },
-  { id: "4", numeroPdv: 6, espacio: 2, provincia: "Panamá", cadena: "Campeon", mallZona: "Albrook", marca: "JohnnyCotton" as Marca, impulsador: "Lorena Pinto", estado: "Normal" as EstadoEspacio },
-  { id: "5", numeroPdv: 15, espacio: 2, provincia: "Panamá", cadena: "Titan", mallZona: "Albrook", marca: "ChessKing" as Marca, impulsador: "Lorena Pinto", estado: "Actualizado" as EstadoEspacio },
-  { id: "6", numeroPdv: 23, espacio: 3, provincia: "Panamá", cadena: "Madison", mallZona: "Albrook", marca: "JohnnyCotton" as Marca, impulsador: "Lorena Pinto", estado: "Normal" as EstadoEspacio },
-  { id: "7", numeroPdv: 27, espacio: 1, provincia: "Panamá", cadena: "Conway", mallZona: "Los Pueblos", marca: "ChessKing" as Marca, impulsador: "Lorena Pinto", estado: "Desactualizado" as EstadoEspacio },
-  { id: "8", numeroPdv: 62, espacio: 2, provincia: "Chiriquí", cadena: "City Mall", mallZona: "David", marca: "JohnnyCotton" as Marca, impulsador: "—", estado: "Critico" as EstadoEspacio },
+import { useState, useEffect, useCallback } from "react";
+import { Search, Filter, Plus, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { BadgeEstadoEspacio } from "@/components/ui/Badge";
+import { MARCA_LABELS } from "@/types";
+
+type Pdv = {
+  id: string;
+  numeroPdv: number;
+  espacio: number;
+  provincia: string;
+  cadena: string;
+  mallZona: string;
+  marca: string;
+  impulsador: string | null;
+  estado: string;
+};
+
+const PROVINCIAS = ["Panamá", "Chorrera", "Arraijan", "Colón", "Chiriquí", "Veraguas", "Coclé", "Herrera"];
+const ESTADOS = ["Actualizado", "Normal", "Critico", "Desactualizado"];
+const MARCAS = [
+  { value: "JohnnyCotton", label: "Johnny Cotton" },
+  { value: "ChessKing", label: "Chess King" },
+  { value: "RAFFINE", label: "RAFFINE" },
+  { value: "JCX", label: "JCX" },
+  { value: "JCB", label: "JCB" },
 ];
 
-const provincias = ["Todas", "Panamá", "Chorrera", "Chiriquí", "Veraguas", "Colón", "Coclé", "Herrera", "Arraijan"];
-const cadenas = ["Todas", "Stevens", "Conway", "Titan", "Campeon", "Madison", "Machetazo", "La Onda", "Fuerte"];
-const estados = ["Todos", "Actualizado", "Normal", "Critico", "Desactualizado"];
-
 export default function PdvPage() {
+  const [pdvs, setPdvs] = useState<Pdv[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
+  const [q, setQ] = useState("");
+  const [provincia, setProvincia] = useState("");
+  const [cadena, setCadena] = useState("");
+  const [estado, setEstado] = useState("");
+  const [marca, setMarca] = useState("");
+
+  const fetchPdvs = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (provincia) params.set("provincia", provincia);
+    if (cadena) params.set("cadena", cadena);
+    if (estado) params.set("estado", estado);
+    if (marca) params.set("marca", marca);
+    params.set("page", page.toString());
+
+    const res = await fetch(`/api/pdv?${params}`);
+    const json = await res.json();
+    setPdvs(json.data ?? []);
+    setTotal(json.total ?? 0);
+    setLoading(false);
+  }, [q, provincia, cadena, estado, marca, page]);
+
+  useEffect(() => {
+    const timeout = setTimeout(fetchPdvs, 300);
+    return () => clearTimeout(timeout);
+  }, [fetchPdvs]);
+
+  const totalPages = Math.ceil(total / pageSize);
+
+  function resetFiltros() {
+    setQ(""); setProvincia(""); setCadena(""); setEstado(""); setMarca(""); setPage(1);
+  }
+
+  const hayFiltros = q || provincia || cadena || estado || marca;
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Puntos de Venta</h1>
-          <p className="text-gray-500 mt-1">Inventario de espacios en tiendas de Panamá</p>
+          <p className="text-gray-500 mt-1">
+            {loading ? "Cargando..." : `${total} espacios en tiendas de Panamá`}
+          </p>
         </div>
         <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
           <Plus size={16} />
@@ -39,27 +92,49 @@ export default function PdvPage() {
             <Search size={16} className="text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar por PDV, tienda o zona..."
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPage(1); }}
+              placeholder="Buscar por tienda, zona o impulsador..."
               className="bg-transparent text-sm flex-1 outline-none"
             />
           </div>
 
-          <select className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
-            {provincias.map(p => <option key={p}>{p}</option>)}
+          <select
+            value={provincia}
+            onChange={(e) => { setProvincia(e.target.value); setPage(1); }}
+            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="">Todas las provincias</option>
+            {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
 
-          <select className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
-            {cadenas.map(c => <option key={c}>{c}</option>)}
+          <select
+            value={estado}
+            onChange={(e) => { setEstado(e.target.value); setPage(1); }}
+            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="">Todos los estados</option>
+            {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
 
-          <select className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
-            {estados.map(e => <option key={e}>{e}</option>)}
+          <select
+            value={marca}
+            onChange={(e) => { setMarca(e.target.value); setPage(1); }}
+            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="">Todas las marcas</option>
+            {MARCAS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
 
-          <button className="flex items-center gap-2 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
-            <Filter size={16} />
-            Más filtros
-          </button>
+          {hayFiltros && (
+            <button
+              onClick={resetFiltros}
+              className="flex items-center gap-2 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              <Filter size={16} />
+              Limpiar filtros
+            </button>
+          )}
         </div>
       </div>
 
@@ -77,47 +152,84 @@ export default function PdvPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Marca</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Impulsador</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Estado</th>
-                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {pdvEjemplos.map((pdv) => (
-                <tr key={pdv.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={14} className="text-gray-400" />
-                      <span className="font-medium text-gray-900">PDV-{String(pdv.numeroPdv).padStart(3, "0")}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-xs font-bold text-gray-700">
-                      {pdv.espacio}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{pdv.provincia}</td>
-                  <td className="px-4 py-3 font-medium text-gray-800">{pdv.cadena}</td>
-                  <td className="px-4 py-3 text-gray-600">{pdv.mallZona}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
-                      {MARCA_LABELS[pdv.marca]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{pdv.impulsador}</td>
-                  <td className="px-4 py-3">
-                    <BadgeEstadoEspacio estado={pdv.estado} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="text-blue-600 hover:text-blue-800 text-xs font-medium">
-                      Ver detalle
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    Cargando puntos de venta...
                   </td>
                 </tr>
-              ))}
+              ) : pdvs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    No se encontraron PDVs con los filtros seleccionados.
+                  </td>
+                </tr>
+              ) : (
+                pdvs.map((pdv) => (
+                  <tr key={pdv.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} className="text-gray-400" />
+                        <span className="font-medium text-gray-900">
+                          PDV-{String(pdv.numeroPdv).padStart(3, "0")}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-xs font-bold text-gray-700">
+                        {pdv.espacio}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{pdv.provincia}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">{pdv.cadena}</td>
+                    <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate" title={pdv.mallZona}>
+                      {pdv.mallZona}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                        {MARCA_LABELS[pdv.marca as keyof typeof MARCA_LABELS] ?? pdv.marca}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{pdv.impulsador ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <BadgeEstadoEspacio estado={pdv.estado as never} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
-          Mostrando {pdvEjemplos.length} de 100+ puntos de venta
+
+        {/* Paginación */}
+        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+          <span className="text-xs text-gray-400">
+            {total === 0 ? "0 resultados" : `Mostrando ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} de ${total} PDVs`}
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1 rounded hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs text-gray-600 px-2">
+                Pág. {page} de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1 rounded hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

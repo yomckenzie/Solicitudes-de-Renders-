@@ -1,35 +1,27 @@
 import { MapPin, FileText, Eye, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { supabaseAdmin } from "@/lib/supabase";
 
-const stats = [
-  {
-    label: "Puntos de Venta",
-    value: "100+",
-    icon: MapPin,
-    color: "bg-blue-500",
-    desc: "En toda Panamá",
-  },
-  {
-    label: "Solicitudes Activas",
-    value: "—",
-    icon: FileText,
-    color: "bg-indigo-500",
-    desc: "En proceso",
-  },
-  {
-    label: "Visitas este mes",
-    value: "—",
-    icon: Eye,
-    color: "bg-purple-500",
-    desc: "Registradas",
-  },
-  {
-    label: "PDV Críticos",
-    value: "—",
-    icon: AlertTriangle,
-    color: "bg-red-500",
-    desc: "Requieren atención",
-  },
-];
+async function getStats() {
+  const firstOfMonth = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    1
+  ).toISOString();
+
+  const [pdvRes, criticoRes, solicitudRes, visitaRes] = await Promise.all([
+    supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }),
+    supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }).eq("estado", "Critico"),
+    supabaseAdmin.from("solicitudes_de_render").select("*", { count: "exact", head: true }),
+    supabaseAdmin.from("visitas").select("*", { count: "exact", head: true }).gte("createdAt", firstOfMonth),
+  ]);
+
+  return {
+    totalPdv: pdvRes.count ?? 0,
+    criticos: criticoRes.count ?? 0,
+    solicitudesActivas: solicitudRes.count ?? 0,
+    visitasMes: visitaRes.count ?? 0,
+  };
+}
 
 const flujoSolicitud = [
   { paso: 1, rol: "Ventas", accion: "Crea la solicitud", estado: "inicio" },
@@ -56,7 +48,40 @@ const stepColors: Record<string, string> = {
   completado: "bg-green-50 border-green-300 text-green-700",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const { totalPdv, criticos, solicitudesActivas, visitasMes } = await getStats();
+
+  const stats = [
+    {
+      label: "Puntos de Venta",
+      value: totalPdv.toString(),
+      icon: MapPin,
+      color: "bg-blue-500",
+      desc: "En toda Panamá",
+    },
+    {
+      label: "Solicitudes Activas",
+      value: solicitudesActivas > 0 ? solicitudesActivas.toString() : "—",
+      icon: FileText,
+      color: "bg-indigo-500",
+      desc: "En proceso",
+    },
+    {
+      label: "Visitas este mes",
+      value: visitasMes > 0 ? visitasMes.toString() : "—",
+      icon: Eye,
+      color: "bg-purple-500",
+      desc: "Registradas",
+    },
+    {
+      label: "PDV Críticos",
+      value: criticos.toString(),
+      icon: AlertTriangle,
+      color: criticos > 0 ? "bg-red-500" : "bg-green-500",
+      desc: criticos > 0 ? "Requieren atención" : "Todo en orden",
+    },
+  ];
+
   return (
     <div className="p-8 space-y-8">
       <div>
