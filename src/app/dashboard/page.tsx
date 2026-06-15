@@ -2,25 +2,29 @@ import { MapPin, FileText, Eye, AlertTriangle, CheckCircle, Clock } from "lucide
 import { supabaseAdmin } from "@/lib/supabase";
 
 async function getStats() {
-  const firstOfMonth = new Date(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    1
-  ).toISOString();
+  try {
+    const firstOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
+    ).toISOString();
 
-  const [pdvRes, criticoRes, solicitudRes, visitaRes] = await Promise.all([
-    supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }),
-    supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }).eq("estado", "Critico"),
-    supabaseAdmin.from("solicitudes_de_render").select("*", { count: "exact", head: true }),
-    supabaseAdmin.from("visitas").select("*", { count: "exact", head: true }).gte("createdAt", firstOfMonth),
-  ]);
+    const [pdvRes, criticoRes, solicitudRes, visitaRes] = await Promise.all([
+      supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }).eq("estado", "Critico"),
+      supabaseAdmin.from("solicitudes_de_render").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("visitas").select("*", { count: "exact", head: true }).gte("createdAt", firstOfMonth),
+    ]);
 
-  return {
-    totalPdv: pdvRes.count ?? 0,
-    criticos: criticoRes.count ?? 0,
-    solicitudesActivas: solicitudRes.count ?? 0,
-    visitasMes: visitaRes.count ?? 0,
-  };
+    return {
+      totalPdv: pdvRes.count ?? 0,
+      criticos: criticoRes.count ?? 0,
+      solicitudesActivas: solicitudRes.count ?? 0,
+      visitasMes: visitaRes.count ?? 0,
+    };
+  } catch {
+    return { totalPdv: 0, criticos: 0, solicitudesActivas: 0, visitasMes: 0 };
+  }
 }
 
 const flujoSolicitud = [
