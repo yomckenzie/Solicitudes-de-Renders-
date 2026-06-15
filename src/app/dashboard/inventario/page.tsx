@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Package, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { BadgeEstadoEspacio } from "@/components/ui/Badge";
 import { MARCA_LABELS } from "@/types";
 
@@ -33,6 +33,9 @@ const TIPO_LABELS: Record<string, string> = {
 };
 const ESTADOS = ["Actualizado", "Normal", "Critico", "Desactualizado"];
 
+const INPUT = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+const LABEL = "block text-xs font-medium text-gray-600 mb-1";
+
 export default function InventarioPage() {
   const [muebles, setMuebles] = useState<MuebleRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -43,6 +46,19 @@ export default function InventarioPage() {
   const [tipo, setTipo] = useState("");
   const [categoria, setCategoria] = useState("");
   const [estado, setEstado] = useState("");
+
+  // Modal agregar mueble
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [form, setForm] = useState({
+    pdvNumero: "",
+    tipo: "corner",
+    categoria: "casual",
+    cantidad: "1",
+    medidas: "",
+    estado: "Normal",
+  });
 
   const fetchInventario = useCallback(async () => {
     setLoading(true);
@@ -63,6 +79,37 @@ export default function InventarioPage() {
     fetchInventario();
   }, [fetchInventario]);
 
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setSaveError("");
+    try {
+      const res = await fetch("/api/inventario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pdvNumero: parseInt(form.pdvNumero),
+          tipo: form.tipo,
+          categoria: form.categoria,
+          cantidad: parseInt(form.cantidad),
+          medidas: form.medidas || null,
+          estado: form.estado,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error ?? "Error al guardar");
+      }
+      setShowModal(false);
+      setForm({ pdvNumero: "", tipo: "corner", categoria: "casual", cantidad: "1", medidas: "", estado: "Normal" });
+      fetchInventario();
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const sinMedidas = muebles.filter(m => !m.medidas).length;
   const totalPages = Math.ceil(total / pageSize);
 
@@ -80,7 +127,10 @@ export default function InventarioPage() {
             {loading ? "Cargando..." : `${total} piezas en puntos de venta`}
           </p>
         </div>
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
           <Plus size={16} />
           Agregar Mueble
         </button>
@@ -257,6 +307,62 @@ export default function InventarioPage() {
           )}
         </div>
       </div>
+
+      {/* Modal Agregar Mueble */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Agregar Mueble</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+              <div>
+                <label className={LABEL}># PDV</label>
+                <input required type="number" min="1" value={form.pdvNumero} onChange={e => setForm(f => ({ ...f, pdvNumero: e.target.value }))} className={INPUT} placeholder="Ej: 1" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL}>Tipo de mueble</label>
+                  <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} className={INPUT}>
+                    {TIPOS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Categoría</label>
+                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className={INPUT}>
+                    <option value="casual">Casual</option>
+                    <option value="interior">Interior</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL}>Cantidad</label>
+                  <input required type="number" min="1" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} className={INPUT} />
+                </div>
+                <div>
+                  <label className={LABEL}>Estado</label>
+                  <select value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))} className={INPUT}>
+                    {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={LABEL}>Medidas (opcional)</label>
+                <input type="text" value={form.medidas} onChange={e => setForm(f => ({ ...f, medidas: e.target.value }))} className={INPUT} placeholder="Ej: 1.20m × 0.60m × 2.00m" />
+              </div>
+              {saveError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>}
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                  {saving ? "Guardando..." : "Guardar Mueble"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
