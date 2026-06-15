@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Rol {
+  admin
+  ventas
+  aprobador
+  coordinadora
+  disenador
+  mercadeo
+  proveedor
+  impulsador
+  contabilidad
+}
+
+enum EstadoEspacio {
+  Actualizado
+  Normal
+  Critico
+  Desactualizado
+}
+
+enum EstadoSolicitud {
+  BORRADOR
+  APROBADA
+  EN_MEDICION
+  EN_DISENIO
+  APROBACION_MERCADEO
+  APROBACION_CLIENTE
+  ABONO_PENDIENTE
+  EN_INSTALACION
+  COMPLETADA
+  RECHAZADA
+}
+
+enum TipoSolicitud {
+  cotizacion
+  disenio
+  retiro
+}
+
+enum TipoMueble {
+  corner
+  gondola
+  rack
+  cabezal
+  columna
+  pared
+  centro_mesa
+}
+
+enum CategoriaMueble {
+  casual
+  interior
+}
+
+enum Marca {
+  JohnnyCotton
+  ChessKing
+  RAFFINE
+  JCX
+  JCB
+}
+
+// ─── Usuarios ────────────────────────────────────────────────────────────────
+
+model Usuario {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       Rol
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  solicitudes SolicitudDeRender[] @relation("CreadaPor")
+  visitas     Visita[]
+  pagos       Pago[]
+
+  @@map("usuarios")
+}
+
+// ─── Puntos de Venta ─────────────────────────────────────────────────────────
+
+model PuntoDeVenta {
+  id                String        @id @default(cuid())
+  numeroPdv         Int           @unique
+  espacio           Int
+  pais              String        @default("Panamá")
+  provincia         String
+  cadena            String
+  mallZona          String
+  marca             Marca
+  impulsador        String?
+  frecuenciaVisita  Int?
+  estado            EstadoEspacio @default(Normal)
+  fechaUltimaVisita DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  mobiliario  Mobiliario[]
+  solicitudes SolicitudDeRender[]
+  visitas     Visita[]
+
+  @@map("puntos_de_venta")
+}
+
+// ─── Mobiliario ──────────────────────────────────────────────────────────────
+
+model Mobiliario {
+  id               String          @id @default(cuid())
+  pdvId            String
+  tipo             TipoMueble
+  categoria        CategoriaMueble
+  cantidad         Int             @default(0)
+  medidas          String?
+  imagenes         String[]
+  estado           EstadoEspacio   @default(Normal)
+  comentarios      String?
+  fechaInstalacion DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  pdv PuntoDeVenta @relation(fields: [pdvId], references: [id], onDelete: Cascade)
+
+  @@map("mobiliario")
+}
+
+// ─── Visitas ─────────────────────────────────────────────────────────────────
+
+model Visita {
+  id            String        @id @default(cuid())
+  pdvId         String
+  impulsadorId  String
+  fecha         DateTime      @default(now())
+  fotos         String[]
+  observacion   String?
+  estadoEspacio EstadoEspacio
+
+  pdv        PuntoDeVenta @relation(fields: [pdvId], references: [id])
+  impulsador Usuario      @relation(fields: [impulsadorId], references: [id])
+
+  @@map("visitas")
+}
+
+// ─── Solicitudes de Render ───────────────────────────────────────────────────
+
+model SolicitudDeRender {
+  id          String          @id @default(cuid())
+  tipo        TipoSolicitud
+  estado      EstadoSolicitud @default(BORRADOR)
+  pdvId       String
+  marca       Marca
+  creadoPorId String
+  notas       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  pdv         PuntoDeVenta @relation(fields: [pdvId], references: [id])
+  creadoPor   Usuario      @relation("CreadaPor", fields: [creadoPorId], references: [id])
+  renders     Render[]
+  pagos       Pago[]
+  instalacion Instalacion?
+  cotizacion  Cotizacion?
+
+  @@map("solicitudes_de_render")
+}
+
+// ─── Renders ─────────────────────────────────────────────────────────────────
+
+model Render {
+  id                String   @id @default(cuid())
+  solicitudId       String
+  archivoUrl        String
+  version           Int      @default(1)
+  aprobadoMercadeo  Boolean  @default(false)
+  aprobadoCliente   Boolean  @default(false)
+  comentarioRechazo String?
+  createdAt         DateTime @default(now())
+
+  solicitud SolicitudDeRender @relation(fields: [solicitudId], references: [id])
+
+  @@map("renders")
+}
+
+// ─── Pagos ───────────────────────────────────────────────────────────────────
+
+model Pago {
+  id              String   @id @default(cuid())
+  solicitudId     String
+  monto           Float
+  porcentaje      Int      @default(70)
+  registradoPorId String
+  fecha           DateTime @default(now())
+  notas           String?
+
+  solicitud     SolicitudDeRender @relation(fields: [solicitudId], references: [id])
+  registradoPor Usuario           @relation(fields: [registradoPorId], references: [id])
+
+  @@map("pagos")
+}
+
+// ─── Instalaciones ───────────────────────────────────────────────────────────
+
+model Instalacion {
+  id               String     @id @default(cuid())
+  solicitudId      String     @unique
+  fechasPropuestas DateTime[]
+  fechaConfirmada  DateTime?
+  visitaRealizada  Boolean    @default(false)
+  notas            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  solicitud SolicitudDeRender @relation(fields: [solicitudId], references: [id])
+
+  @@map("instalaciones")
+}
+
+// ─── Cotizaciones ────────────────────────────────────────────────────────────
+
+model Cotizacion {
+  id          String   @id @default(cuid())
+  solicitudId String   @unique
+  precioMin   Float
+  precioMax   Float
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  solicitud SolicitudDeRender @relation(fields: [solicitudId], references: [id])
+
+  @@map("cotizaciones")
+}

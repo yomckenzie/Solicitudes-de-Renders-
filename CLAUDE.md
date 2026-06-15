@@ -1,0 +1,298 @@
+# CLAUDE.md — Solicitudes de Renders
+
+Guía de referencia para asistentes de IA y el equipo de desarrollo. Actualizar este archivo cuando cambien procesos, roles o convenciones.
+
+---
+
+## Descripción del proyecto
+
+**Solicitudes de Renders** es una aplicación web interna para gestionar el inventario de mobiliario en puntos de venta, las solicitudes de diseño de nuevos espacios y el seguimiento de instalaciones de una empresa de ropa panameña.
+
+La empresa distribuye sus marcas (**Johnny Cotton, Chess King, RAFFINE, JCX, JCB**) a través de +100 puntos de venta en cadenas de tiendas de toda Panamá. El sistema reemplaza las hojas de Excel actuales y permite que cada área tenga visibilidad del estado de cada espacio y solicitud.
+
+---
+
+## Glosario de términos del negocio
+
+Usar estos términos en nombres de entidades, rutas y UI.
+
+| Término | Significado |
+|---------|-------------|
+| `punto_de_venta` / `pdv` | Espacio físico en una tienda donde se exhibe el mobiliario |
+| `cadena` | Tienda/retailer donde se ubican los PDV (ej: Stevens, Conway, Titan) |
+| `mall` / `ubicacion` | Centro comercial o zona donde está la tienda |
+| `corner` | Mueble de esquina para exhibición de ropa |
+| `cabezal` | Cabecera/cabezal de exhibición de ropa |
+| `gondola` | Mueble tipo góndola para colgar ropa |
+| `rack` | Perchero/rack de ropa |
+| `fascia` | Panel frontal de identificación de marca en el mueble |
+| `marca` | Marca de ropa exhibida (Johnny Cotton, Chess King, RAFFINE, etc.) |
+| `tipo` | Categoría del producto: Casual o Interior |
+| `impulsador` | Persona del equipo que visita y gestiona los PDV |
+| `visita` | Registro de visita de un impulsador a un PDV |
+| `solicitud` | Pedido de diseño de render para un espacio nuevo o renovación |
+| `render` | Propuesta visual / diseño del espacio o mueble |
+| `cotización` | Presupuesto de precio para fabricación/instalación |
+| `medición` | Toma de medidas físicas del espacio en la tienda |
+| `instalación` | Colocación del mueble en el punto de venta |
+| `abono` | Pago anticipado (normalmente 70%) |
+| `retiro` | Devolución o recogida de mueble de la cadena |
+| `estado` | Estado del espacio: Actualizado / Normal / Crítico / Desactualizado |
+| `provincia` | División geográfica: Panamá, Chorrera, Chiriquí, Veraguas, Colón, Coclé, Herrera |
+
+---
+
+## Marcas y cadenas
+
+### Marcas propias
+- **Johnny Cotton (JC)** — Casual e Interior
+- **Chess King (CK)** — Casual e Interior
+- **RAFFINE** — Interior
+- **JCX** — Casual
+- **JCB** — Casual e Interior
+
+### Cadenas principales (retailers)
+Stevens, Conway, Titan, Campeon, Machetazo, Costo, La Onda, Madison, Picadilly, Sacks, DDP, Ecomoda, OCA Loca, Xtra, Jumbo, Maestro, Punto Mayorista, Punto Poderoso, Shopping Center, Amani, Jordania, El Fuerte
+
+### Provincias / Zonas geográficas
+Panamá ciudad, Chorrera, Arraijan, Colón, Chiriquí (David), Veraguas (Santiago), Coclé (Penonomé, Aguadulce), Herrera (Chitré)
+
+---
+
+## Datos del inventario de mobiliario
+
+Cada punto de venta registra:
+
+| Campo | Descripción |
+|-------|-------------|
+| `#PDV` | Número único del punto de venta |
+| `espacio` | Prioridad del espacio (1=básico, 2=medio, 3=premium) |
+| `pais` | País (Panamá) |
+| `provincia` | Provincia geográfica |
+| `tienda` / `cadena` | Nombre del retailer |
+| `zona_cc` | Mall o centro comercial |
+| `marca` | Marca de ropa exhibida |
+| `corner_casual` | Cantidad de corners de ropa casual |
+| `racks_casual` | Cantidad de racks de ropa casual |
+| `gondola_casual` | Cantidad de góndolas de ropa casual |
+| `cabezales_casual` | Cantidad de cabezales de ropa casual |
+| `centro_mesa` | Cantidad de centros de mesa |
+| `columna_casual` | Cantidad de columnas de ropa casual |
+| `pared_casual` | Paredes en blanco de ropa casual |
+| `corner_interior` | Cantidad de corners de ropa interior |
+| `gondola_interior` | Cantidad de góndolas de ropa interior |
+| `columna_interior` | Cantidad de columnas de ropa interior |
+| `pared_interior` | Paredes blancas de ropa interior |
+| `fotos_tamanos` | Fotos del espacio y tamaños actuales |
+| `categoria_tamano` | Categoría de tamaño del espacio (1/2/3) |
+| `impulsador` | Nombre del impulsador asignado |
+| `frecuencia_visita` | Frecuencia sugerida de visita por semana |
+| `estado` | Estado del espacio: Actualizado / Normal / Crítico / Desactualizado |
+| `foto_visita` | Foto tomada en la visita |
+| `observacion` | Notas de la visita |
+| `fecha_ultima_visita` | Fecha de la última visita registrada |
+
+### Registro de Corners (hoja de moviliario)
+Cada corner también registra:
+- `medidas` — dimensiones físicas del mueble (campo que actualmente está vacío y hay que completar)
+- `imagenes` — fotos del mueble instalado
+- `estado` — Actualizado / Normal / Crítico
+- `comentarios` — observaciones
+- `fecha_instalacion` — cuándo se instaló
+
+---
+
+## Procesos de negocio
+
+### Proceso 1 — Cotización de precios
+
+1. **Ventas** solicita cotización de Corners, Cabezales o Cornes
+   - Referencias típicas: Cabezales ×10, Cornes ×20
+2. Se registra rango de precio: Mínimo y Máximo
+3. Cotización queda disponible para el equipo de ventas
+
+### Proceso 2 — Retiro de muebles de cadena
+
+1. La **cadena** notifica que hay muebles para retirar
+2. Se avisa al **Vendedor** responsable
+3. El vendedor gestiona el retiro y actualiza el inventario del PDV
+
+### Proceso 3 — Diseño de cero (flujo principal de solicitud de render)
+
+| Paso | Responsable | Acción | SLA |
+|------|------------|--------|-----|
+| 1 | Ventas | Crea la solicitud de diseño indicando PDV, medidas y marca | — |
+| 2 | ilad | Aprueba la solicitud | — |
+| 3 | Yarrisa | Coordina medición con el cliente/cadena | — |
+| 4 | Proveedor | Envía las medidas tomadas | — |
+| 5 | Yovanni | Crea propuesta de diseño (render) | **3 días** |
+| 6 | Mercadeo | Aprueba el diseño | — |
+| 7 | Cliente | Aprueba el diseño → si SÍ, asigna fecha | — |
+| 7b | Yovanni | Si el cliente rechaza → ajusta y repite desde paso 6 | — |
+| 8 | Yarrisa | Registra abono del 70% → Contabilidad | — |
+| 9 | Proveedor | Propone fecha de instalación (mínimo 2 opciones) | — |
+| 10 | Yarrisa | Confirma la fecha con el proveedor | — |
+| 11 | Yarrisa | Visita la instalación | — |
+| 12 | Mercadeo | Crea video publicitario del resultado | — |
+
+---
+
+## Roles y permisos
+
+| Rol | Persona/Área | Puede hacer |
+|-----|-------------|-------------|
+| `ventas` | Equipo de ventas | Crear solicitudes, ver cotizaciones, ver estado de PDV |
+| `aprobador` | ilad | Aprobar/rechazar solicitudes de diseño |
+| `coordinadora` | Yarrisa | Gestionar mediciones, confirmar instalaciones, registrar abonos |
+| `diseñador` | Yovanni | Subir propuestas de diseño/renders |
+| `mercadeo` | Equipo de marketing | Aprobar diseños, subir videos |
+| `proveedor` | Externo | Ver medidas, proponer fechas de instalación |
+| `impulsador` | Lorena Pinto, Isis Ramirez, Alcibiades Tenorio, etc. | Registrar visitas, actualizar estado y fotos de PDV |
+| `contabilidad` | Área contable | Ver registros de pagos y abonos |
+| `admin` | Administrador | Acceso completo: usuarios, reportes, exportaciones |
+
+---
+
+## Tecnología sugerida
+
+> El stack no está definido aún. Se sugiere lo siguiente:
+
+| Capa | Tecnología sugerida | Motivo |
+|------|---------------------|--------|
+| Frontend | Next.js (React) | Rutas por rol, SSR, subida de fotos, tablas de inventario |
+| Backend / API | Node.js + API Routes de Next.js | Mismo lenguaje en todo el stack |
+| Base de datos | PostgreSQL | Relacional, ideal para inventario con múltiples entidades |
+| ORM | Prisma | Esquema declarativo, migraciones sencillas |
+| Autenticación | NextAuth.js | Manejo de roles y sesiones |
+| Almacenamiento de fotos | Cloudinary o Supabase Storage | Fotos de PDV, renders, visitas |
+| Estilos | Tailwind CSS | Tablas y formularios de inventario rápidos de construir |
+| Hosting | Vercel + Supabase | Despliegue simple, PostgreSQL gestionado |
+
+---
+
+## Estructura esperada del repositorio
+
+```
+solicitudes-de-renders/
+├── app/                          # Rutas y páginas (Next.js App Router)
+│   ├── (dashboard)/
+│   │   ├── pdv/                  # Gestión de puntos de venta
+│   │   ├── inventario/           # Inventario de mobiliario
+│   │   ├── solicitudes/          # Solicitudes de renders
+│   │   ├── visitas/              # Registro de visitas
+│   │   └── reportes/             # Reportes por zona/cadena/marca
+│   ├── api/
+│   │   ├── pdv/
+│   │   ├── solicitudes/
+│   │   └── visitas/
+│   └── login/
+├── components/                   # Componentes de UI reutilizables
+│   ├── tablas/                   # Tablas de inventario
+│   ├── formularios/              # Formularios de solicitud/visita
+│   └── mapas/                    # Vista geográfica de PDV (opcional)
+├── lib/
+│   ├── db.ts                     # Cliente Prisma
+│   └── auth.ts                   # Configuración de sesiones
+├── prisma/
+│   └── schema.prisma             # Modelos de datos
+├── public/
+├── types/
+├── .env.example
+├── CLAUDE.md                     # Este archivo
+└── README.md
+```
+
+---
+
+## Modelos de datos principales (borrador)
+
+```
+PuntoDeVenta
+  id, numero_pdv, espacio (1|2|3), pais, provincia, cadena, mall_zona
+  marca, impulsador, frecuencia_visita, estado, fecha_ultima_visita
+
+Mobiliario (inventario de muebles en cada PDV)
+  id, pdv_id, tipo (corner|gondola|rack|cabezal|columna|pared|centro_mesa)
+  categoria (casual|interior), cantidad, medidas, imagenes[], estado
+
+SolicitudDeRender
+  id, tipo (cotizacion|disenio|retiro), estado, pdv_id, marca
+  creadoPor, fechaCreacion, ...flujo de aprobaciones
+
+EstadoSolicitud (flujo)
+  BORRADOR → APROBADA → EN_MEDICION → EN_DISENIO
+  → APROBACION_MERCADEO → APROBACION_CLIENTE
+  → ABONO_PENDIENTE → EN_INSTALACION → COMPLETADA
+
+Render
+  id, solicitud_id, archivo_url, version, aprobado_mercadeo, aprobado_cliente
+
+Visita
+  id, pdv_id, impulsador_id, fecha, fotos[], observacion, estado_espacio
+
+Pago
+  id, solicitud_id, monto, porcentaje (70%), registrado_por, fecha
+
+Instalacion
+  id, solicitud_id, fechas_propuestas[], fecha_confirmada, visita_realizada
+```
+
+---
+
+## Vistas clave de la aplicación
+
+1. **Dashboard por rol** — cada usuario ve solo lo relevante a su rol
+2. **Mapa / lista de PDV** — filtrable por provincia, cadena, marca, estado
+3. **Inventario de mobiliario** — tabla detallada con medidas, fotos y estado por PDV
+4. **Solicitudes de renders** — listado con estado del flujo (tipo Kanban o tabla)
+5. **Registro de visitas** — formulario de visita con subida de fotos
+6. **Reportes** — PDV críticos, solicitudes pendientes, instalaciones próximas
+
+---
+
+## Flujo de trabajo en Git
+
+```
+main                    → rama de producción (no tocar directamente)
+claude/<descripción>    → ramas generadas por Claude AI
+feature/<descripción>   → nuevas funcionalidades
+fix/<descripción>       → correcciones de errores
+```
+
+**Formato de commits:**
+```
+feat: agregar formulario de registro de visita
+fix: corregir filtro por provincia en tabla de PDV
+docs: actualizar CLAUDE.md con nuevos campos de inventario
+```
+
+---
+
+## Convenciones para asistentes IA (Claude)
+
+1. **Idioma del UI:** toda la interfaz va en **español** — etiquetas, mensajes, placeholders
+2. **Idioma del código:** nombres de funciones, variables y comentarios técnicos en **inglés**
+3. **Nomenclatura de entidades:** usar los términos del Glosario (`pdv`, no `store`; `solicitud`, no `request`; `impulsador`, no `promoter`)
+4. **Roles:** antes de agregar lógica de permisos, consultar la tabla de roles de este archivo
+5. **Inventario:** los campos de mobiliario están documentados en "Datos del inventario" — no inventar nombres nuevos
+6. **Fotos:** siempre usar almacenamiento externo (Cloudinary/Supabase Storage), nunca guardar imágenes en el repositorio
+7. **No crear archivos .md** adicionales sin que se pida explícitamente
+8. **Priorizar editar archivos existentes** en lugar de crear archivos nuevos
+
+---
+
+## Estado actual del proyecto
+
+- [x] Repositorio creado
+- [x] Procesos de negocio documentados (este archivo)
+- [x] Estructura de datos del inventario documentada (basada en Excel/PDFs existentes)
+- [ ] Stack tecnológico confirmado
+- [ ] Base de datos y esquema definidos en Prisma
+- [ ] Autenticación y roles implementados
+- [ ] Módulo de inventario de PDV (importar datos existentes)
+- [ ] Módulo de solicitudes de render (Proceso 3)
+- [ ] Módulo de cotizaciones (Proceso 1)
+- [ ] Módulo de retiro de muebles (Proceso 2)
+- [ ] Módulo de registro de visitas con fotos
+- [ ] Dashboard por rol
+- [ ] Reportes y exportaciones
