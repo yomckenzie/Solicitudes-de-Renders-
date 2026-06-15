@@ -10,6 +10,7 @@ import {
   Eye,
   BarChart2,
   Settings,
+  ClipboardList,
 } from "lucide-react";
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/dashboard/inventario", label: "Inventario", icon: Package },
   { href: "/dashboard/solicitudes", label: "Solicitudes", icon: FileText },
   { href: "/dashboard/visitas", label: "Visitas", icon: Eye },
+  { href: "/dashboard/tareas", label: "Tareas", icon: ClipboardList },
   { href: "/dashboard/reportes", label: "Reportes", icon: BarChart2 },
 ];
 

@@ -1,7 +1,66 @@
-import { MapPin, FileText, Eye, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import {
+  MapPin,
+  FileText,
+  Eye,
+  AlertTriangle,
+  Clock,
+  CheckCircle,
+  TrendingUp,
+  Activity,
+  ClipboardList,
+} from "lucide-react";
+import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase";
 
-async function getStats() {
+type PdvRow = { id: string; provincia: string; estado: string; cadena: string; numeroPdv: number };
+type VisitaRow = {
+  id: string;
+  fecha: string;
+  estadoEspacio: string;
+  puntos_de_venta: { numeroPdv: number; cadena: string } | null;
+};
+type SolicitudRow = {
+  id: string;
+  tipo: string;
+  estado: string;
+  marca: string;
+  createdAt: string;
+  puntos_de_venta: { numeroPdv: number; cadena: string } | null;
+};
+type CriticoPdv = { id: string; numeroPdv: number; cadena: string; mallZona: string; provincia: string };
+
+const PROVINCIAS_ORDENADAS = [
+  "Chiriquí",
+  "Veraguas",
+  "Coclé",
+  "Herrera",
+  "Chorrera",
+  "Arraijan",
+  "Colón",
+  "Panamá",
+];
+
+const provinciaColor = (count: number) => {
+  if (count === 0) return "bg-gray-50 border-gray-200 text-gray-400";
+  if (count <= 3) return "bg-blue-50 border-blue-200 text-blue-700";
+  if (count <= 8) return "bg-blue-100 border-blue-300 text-blue-800";
+  if (count <= 20) return "bg-blue-200 border-blue-400 text-blue-900";
+  return "bg-blue-600 border-blue-700 text-white";
+};
+
+const estadoSolicitudColor: Record<string, string> = {
+  BORRADOR: "bg-gray-100 text-gray-600",
+  APROBADA: "bg-blue-100 text-blue-700",
+  EN_MEDICION: "bg-purple-100 text-purple-700",
+  EN_DISENIO: "bg-indigo-100 text-indigo-700",
+  APROBACION_MERCADEO: "bg-cyan-100 text-cyan-700",
+  APROBACION_CLIENTE: "bg-teal-100 text-teal-700",
+  ABONO_PENDIENTE: "bg-pink-100 text-pink-700",
+  EN_INSTALACION: "bg-orange-100 text-orange-700",
+  COMPLETADA: "bg-green-100 text-green-700",
+};
+
+async function getDashboardData() {
   try {
     const firstOfMonth = new Date(
       new Date().getFullYear(),
@@ -9,21 +68,69 @@ async function getStats() {
       1
     ).toISOString();
 
-    const [pdvRes, criticoRes, solicitudRes, visitaRes] = await Promise.all([
+    const [
+      pdvRes,
+      criticoRes,
+      solicitudRes,
+      visitaRes,
+      allPdvsRes,
+      recentVisitasRes,
+      recentSolicitudesRes,
+      criticoPdvsRes,
+    ] = await Promise.all([
       supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }).eq("estado", "Critico"),
       supabaseAdmin.from("solicitudes_de_render").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("visitas").select("*", { count: "exact", head: true }).gte("createdAt", firstOfMonth),
+      supabaseAdmin.from("puntos_de_venta").select("id, provincia, estado, cadena, numeroPdv"),
+      supabaseAdmin
+        .from("visitas")
+        .select("id, fecha, estadoEspacio, puntos_de_venta(numeroPdv, cadena)")
+        .order("fecha", { ascending: false })
+        .limit(6),
+      supabaseAdmin
+        .from("solicitudes_de_render")
+        .select("id, tipo, estado, marca, createdAt, puntos_de_venta(numeroPdv, cadena)")
+        .order("createdAt", { ascending: false })
+        .limit(6),
+      supabaseAdmin
+        .from("puntos_de_venta")
+        .select("id, numeroPdv, cadena, mallZona, provincia")
+        .eq("estado", "Critico")
+        .limit(6),
     ]);
+
+    const allPdvs: PdvRow[] = allPdvsRes.data || [];
+    const provinciaMap: Record<string, { total: number; critico: number; normal: number }> = {};
+    for (const p of allPdvs) {
+      const key = p.provincia || "Sin provincia";
+      if (!provinciaMap[key]) provinciaMap[key] = { total: 0, critico: 0, normal: 0 };
+      provinciaMap[key].total++;
+      if (p.estado === "Critico") provinciaMap[key].critico++;
+      else provinciaMap[key].normal++;
+    }
 
     return {
       totalPdv: pdvRes.count ?? 0,
       criticos: criticoRes.count ?? 0,
       solicitudesActivas: solicitudRes.count ?? 0,
       visitasMes: visitaRes.count ?? 0,
+      provinciaMap,
+      recentVisitas: (recentVisitasRes.data || []) as unknown as VisitaRow[],
+      recentSolicitudes: (recentSolicitudesRes.data || []) as unknown as SolicitudRow[],
+      criticoPdvs: (criticoPdvsRes.data || []) as unknown as CriticoPdv[],
     };
   } catch {
-    return { totalPdv: 0, criticos: 0, solicitudesActivas: 0, visitasMes: 0 };
+    return {
+      totalPdv: 0,
+      criticos: 0,
+      solicitudesActivas: 0,
+      visitasMes: 0,
+      provinciaMap: {},
+      recentVisitas: [],
+      recentSolicitudes: [],
+      criticoPdvs: [],
+    };
   }
 }
 
@@ -53,22 +160,33 @@ const stepColors: Record<string, string> = {
 };
 
 export default async function DashboardPage() {
-  const { totalPdv, criticos, solicitudesActivas, visitasMes } = await getStats();
+  const {
+    totalPdv,
+    criticos,
+    solicitudesActivas,
+    visitasMes,
+    provinciaMap,
+    recentVisitas,
+    recentSolicitudes,
+    criticoPdvs,
+  } = await getDashboardData();
 
-  const stats = [
+  const kpis = [
     {
       label: "Puntos de Venta",
       value: totalPdv.toString(),
       icon: MapPin,
       color: "bg-blue-500",
       desc: "En toda Panamá",
+      href: "/dashboard/pdv",
     },
     {
-      label: "Solicitudes Activas",
+      label: "Solicitudes",
       value: solicitudesActivas > 0 ? solicitudesActivas.toString() : "—",
       icon: FileText,
       color: "bg-indigo-500",
-      desc: "En proceso",
+      desc: "Total registradas",
+      href: "/dashboard/solicitudes",
     },
     {
       label: "Visitas este mes",
@@ -76,6 +194,7 @@ export default async function DashboardPage() {
       icon: Eye,
       color: "bg-purple-500",
       desc: "Registradas",
+      href: "/dashboard/visitas",
     },
     {
       label: "PDV Críticos",
@@ -83,21 +202,44 @@ export default async function DashboardPage() {
       icon: AlertTriangle,
       color: criticos > 0 ? "bg-red-500" : "bg-green-500",
       desc: criticos > 0 ? "Requieren atención" : "Todo en orden",
+      href: "/dashboard/pdv",
     },
   ];
 
+  const estadoVisitaColor: Record<string, string> = {
+    Actualizado: "bg-green-100 text-green-700",
+    Normal: "bg-blue-100 text-blue-700",
+    Critico: "bg-red-100 text-red-700",
+    Desactualizado: "bg-yellow-100 text-yellow-700",
+  };
+
   return (
     <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Resumen general del sistema</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Resumen general del sistema — {new Date().toLocaleDateString("es-PA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard/solicitudes"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <FileText size={15} />
+            Nueva Solicitud
+          </Link>
+        </div>
       </div>
 
-      {/* Métricas */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color, desc }) => (
-          <div key={label} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start gap-4">
-            <div className={`${color} p-3 rounded-lg`}>
+        {kpis.map(({ label, value, icon: Icon, color, desc, href }) => (
+          <Link
+            key={label}
+            href={href}
+            className="bg-white rounded-xl border border-gray-200 p-5 flex items-start gap-4 hover:shadow-md hover:border-gray-300 transition-all group"
+          >
+            <div className={`${color} p-3 rounded-lg group-hover:scale-110 transition-transform`}>
               <Icon size={20} className="text-white" />
             </div>
             <div>
@@ -105,11 +247,173 @@ export default async function DashboardPage() {
               <p className="text-sm font-medium text-gray-700">{label}</p>
               <p className="text-xs text-gray-400">{desc}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
-      {/* Flujo del proceso de diseño */}
+      {/* Province Map */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <TrendingUp size={20} className="text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Cobertura por Provincia</h2>
+          <span className="ml-auto text-xs text-gray-400">Panamá · {totalPdv} puntos de venta</span>
+        </div>
+
+        {/* Visual province grid — west to east */}
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 mb-4">
+          {PROVINCIAS_ORDENADAS.map(prov => {
+            const info = provinciaMap[prov] || { total: 0, critico: 0, normal: 0 };
+            return (
+              <Link
+                key={prov}
+                href={`/dashboard/pdv?provincia=${encodeURIComponent(prov)}`}
+                className={`rounded-xl border-2 p-3 text-center transition-all hover:scale-105 hover:shadow-md cursor-pointer ${provinciaColor(info.total)}`}
+              >
+                <p className="text-xl font-black">{info.total}</p>
+                <p className="text-xs font-semibold mt-0.5 leading-tight">{prov}</p>
+                {info.critico > 0 && (
+                  <p className="text-xs mt-1 text-red-500 font-medium">⚠ {info.critico}</p>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-50 border border-blue-200 inline-block" /> 1-3 PDV</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-300 inline-block" /> 4-8 PDV</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-200 border border-blue-400 inline-block" /> 9-20 PDV</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-600 border border-blue-700 inline-block" /> 20+ PDV</span>
+          <span className="flex items-center gap-1.5 ml-auto text-red-500"><AlertTriangle size={12} /> Con PDV críticos</span>
+        </div>
+      </div>
+
+      {/* Activity + Critical PDVs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Recent Activity */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={18} className="text-purple-600" />
+            <h3 className="font-semibold text-gray-900">Actividad Reciente</h3>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Últimas Visitas</p>
+            {recentVisitas.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">No hay visitas registradas</p>
+            ) : (
+              recentVisitas.slice(0, 3).map(v => (
+                <div key={v.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                  <div>
+                    <p className="text-sm text-gray-700 font-medium">
+                      PDV-{v.puntos_de_venta?.numeroPdv} · {v.puntos_de_venta?.cadena}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(v.fecha).toLocaleDateString("es-PA")}
+                    </p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${estadoVisitaColor[v.estadoEspacio] || "bg-gray-100 text-gray-600"}`}>
+                    {v.estadoEspacio}
+                  </span>
+                </div>
+              ))
+            )}
+
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-2">Solicitudes Recientes</p>
+            {recentSolicitudes.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">No hay solicitudes registradas</p>
+            ) : (
+              recentSolicitudes.slice(0, 3).map(s => (
+                <div key={s.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                  <div>
+                    <p className="text-sm text-gray-700 font-medium">
+                      {s.tipo} · {s.marca}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      PDV-{s.puntos_de_venta?.numeroPdv} · {new Date(s.createdAt).toLocaleDateString("es-PA")}
+                    </p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${estadoSolicitudColor[s.estado] || "bg-gray-100 text-gray-600"}`}>
+                    {s.estado.replace(/_/g, " ")}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <Link href="/dashboard/visitas" className="flex-1 text-center text-xs text-blue-600 hover:underline py-1">Ver visitas →</Link>
+            <Link href="/dashboard/solicitudes" className="flex-1 text-center text-xs text-blue-600 hover:underline py-1">Ver solicitudes →</Link>
+          </div>
+        </div>
+
+        {/* Critical PDVs */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle size={18} className="text-red-500" />
+            <h3 className="font-semibold text-gray-900">PDV Críticos</h3>
+            {criticos > 0 && (
+              <span className="ml-auto bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                {criticos} total
+              </span>
+            )}
+          </div>
+
+          {criticoPdvs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <CheckCircle size={32} className="text-green-400 mb-2" />
+              <p className="text-sm font-medium text-gray-600">Todo en orden</p>
+              <p className="text-xs text-gray-400 mt-1">No hay puntos de venta críticos</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {criticoPdvs.map(p => (
+                <Link
+                  key={p.id}
+                  href={`/dashboard/pdv/${p.id}`}
+                  className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">PDV-{p.numeroPdv}</p>
+                    <p className="text-xs text-red-600">{p.cadena} · {p.mallZona}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-red-500 font-medium">{p.provincia}</p>
+                    <span className="text-xs bg-red-200 text-red-700 px-2 py-0.5 rounded-full">Crítico</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4">
+            <Link href="/dashboard/pdv" className="text-xs text-blue-600 hover:underline">Ver todos los PDV →</Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { href: "/dashboard/pdv", icon: MapPin, label: "Ver PDV", color: "text-blue-600 bg-blue-50 hover:bg-blue-100" },
+          { href: "/dashboard/inventario", icon: ClipboardList, label: "Inventario", color: "text-indigo-600 bg-indigo-50 hover:bg-indigo-100" },
+          { href: "/dashboard/visitas", icon: Eye, label: "Registrar Visita", color: "text-purple-600 bg-purple-50 hover:bg-purple-100" },
+          { href: "/dashboard/tareas", icon: CheckCircle, label: "Ver Tareas", color: "text-green-600 bg-green-50 hover:bg-green-100" },
+        ].map(({ href, icon: Icon, label, color }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent transition-colors font-medium text-sm ${color}`}
+          >
+            <Icon size={18} />
+            {label}
+          </Link>
+        ))}
+      </div>
+
+      {/* Proceso de Diseño */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-6">
           <Clock size={20} className="text-indigo-600" />
@@ -134,42 +438,6 @@ export default async function DashboardPage() {
               <p className="text-xs">{accion}</p>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Resumen de procesos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle size={18} className="text-green-500" />
-            <h3 className="font-semibold text-gray-800 text-sm">Proceso 1</h3>
-          </div>
-          <p className="text-sm font-medium text-gray-700">Cotización de Precios</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Corners, Cabezales y Cornes con rango Mínimo / Máximo
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle size={18} className="text-orange-500" />
-            <h3 className="font-semibold text-gray-800 text-sm">Proceso 2</h3>
-          </div>
-          <p className="text-sm font-medium text-gray-700">Retiro de Muebles</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Cadena avisa → vendedor gestiona el retiro del PDV
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle size={18} className="text-blue-500" />
-            <h3 className="font-semibold text-gray-800 text-sm">Proceso 3</h3>
-          </div>
-          <p className="text-sm font-medium text-gray-700">Diseño de Cero</p>
-          <p className="text-xs text-gray-500 mt-1">
-            12 pasos desde solicitud hasta video publicitario
-          </p>
         </div>
       </div>
     </div>
