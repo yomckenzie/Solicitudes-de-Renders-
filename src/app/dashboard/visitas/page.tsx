@@ -36,7 +36,10 @@ export default function VisitasPage() {
     fecha: new Date().toISOString().split("T")[0],
     estadoEspacio: "Normal" as EstadoEspacio,
     observacion: "",
+    fotos: [] as string[],
   });
+  const [uploadingFotos, setUploadingFotos] = useState(false);
+  const [fotoPreview, setFotoPreview] = useState<string[]>([]);
 
   useEffect(() => {
     fetchVisitas();
@@ -51,6 +54,44 @@ export default function VisitasPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    setUploadingFotos(true);
+    const uploadedUrls: string[] = [];
+    const previews: string[] = [];
+
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "visitas");
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          alert(`Error al subir ${file.name}`);
+          continue;
+        }
+
+        const json = await res.json();
+        uploadedUrls.push(json.url);
+        previews.push(json.url);
+      }
+
+      setForm(f => ({ ...f, fotos: [...f.fotos, ...uploadedUrls] }));
+      setFotoPreview(p => [...p, ...previews]);
+    } catch (e) {
+      alert("Error al subir fotos: " + String(e));
+    } finally {
+      setUploadingFotos(false);
     }
   };
 
@@ -81,7 +122,9 @@ export default function VisitasPage() {
         fecha: new Date().toISOString().split("T")[0],
         estadoEspacio: "Normal",
         observacion: "",
+        fotos: [],
       });
+      setFotoPreview([]);
       fetchVisitas();
     } catch (e) {
       alert(String(e));
@@ -250,6 +293,26 @@ export default function VisitasPage() {
                 placeholder="Notas sobre la visita..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fotos de la Visita</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFotoUpload}
+                disabled={uploadingFotos}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {uploadingFotos && <p className="text-xs text-gray-500 mt-1">Subiendo fotos...</p>}
+              {fotoPreview.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  {fotoPreview.map((url, i) => (
+                    <img key={i} src={url} alt={`foto ${i}`} className="w-full h-24 object-cover rounded-lg border border-gray-200" />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-4">

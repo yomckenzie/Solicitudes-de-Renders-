@@ -62,6 +62,10 @@ export default function PdvPage() {
   const [editForm, setEditForm] = useState<Partial<Pdv>>({});
   const [editSaving, setEditSaving] = useState(false);
 
+  // Modal detalle completo PDV
+  const [detailPdv, setDetailPdv] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   const fetchPdvs = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -139,6 +143,21 @@ export default function PdvPage() {
     setEditForm({ ...pdv });
   }
 
+  async function openDetail(pdv: Pdv) {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/pdv/${pdv.id}/detalle`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetailPdv(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
   const totalPages = Math.ceil(total / pageSize);
 
   return (
@@ -214,7 +233,7 @@ export default function PdvPage() {
               ) : pdvs.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No se encontraron PDVs.</td></tr>
               ) : pdvs.map((pdv) => (
-                <tr key={pdv.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openEdit(pdv)}>
+                <tr key={pdv.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openDetail(pdv)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <MapPin size={14} className="text-gray-400" />
@@ -252,6 +271,143 @@ export default function PdvPage() {
           )}
         </div>
       </div>
+
+      {/* Modal Detalle Completo PDV */}
+      {detailPdv && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  PDV-{String(detailPdv.pdv.numeroPdv).padStart(3, "0")} — {detailPdv.pdv.cadena}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">{detailPdv.pdv.provincia} • {detailPdv.pdv.mallZona}</p>
+              </div>
+              <button onClick={() => setDetailPdv(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+
+            <div className="px-6 py-5 space-y-6 max-h-96 overflow-y-auto">
+              {/* Info básica */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Marca</p>
+                  <p className="font-semibold">{MARCA_LABELS[detailPdv.pdv.marca as keyof typeof MARCA_LABELS] ?? detailPdv.pdv.marca}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Estado</p>
+                  <BadgeEstadoEspacio estado={detailPdv.pdv.estado} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Impulsador</p>
+                  <p className="font-semibold">{detailPdv.pdv.impulsador ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Espacio</p>
+                  <p className="font-semibold">{detailPdv.pdv.espacio === 1 ? "Básico" : detailPdv.pdv.espacio === 2 ? "Medio" : "Premium"}</p>
+                </div>
+              </div>
+
+              {/* Mobiliarios */}
+              {detailLoading ? (
+                <p className="text-gray-400 text-sm">Cargando...</p>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="font-semibold text-gray-800 mb-3">Mobiliarios ({detailPdv.totalMobiliarios})</h3>
+                    {detailPdv.mobiliarios.length === 0 ? (
+                      <p className="text-xs text-gray-400">Sin muebles registrados</p>
+                    ) : (
+                      <div className="space-y-3 max-h-48 overflow-y-auto">
+                        {detailPdv.mobiliarios.map((m: any) => (
+                          <div key={m.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">{m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)}</p>
+                                <p className="text-xs text-gray-500">{m.categoria} • Cant: {m.cantidad}</p>
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.estado === "Actualizado" ? "bg-green-100 text-green-700" : m.estado === "Critico" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                                {m.estado}
+                              </span>
+                            </div>
+                            {m.medidas && <p className="text-xs text-gray-600 font-mono mb-2">📏 {m.medidas}</p>}
+                            {m.imagenes && m.imagenes.length > 0 && (
+                              <div className="flex gap-2">
+                                {m.imagenes.slice(0, 3).map((img: string, i: number) => (
+                                  <img key={i} src={img} alt={`mueble ${i}`} className="w-12 h-12 object-cover rounded border border-gray-300" />
+                                ))}
+                                {m.imagenes.length > 3 && <p className="text-xs text-gray-400 self-center">+{m.imagenes.length - 3}</p>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Última visita */}
+                  {detailPdv.ultimaVisita && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">Última Visita</h3>
+                      <div className="bg-blue-50 rounded-lg p-3 text-sm">
+                        <p className="text-xs text-gray-500">Impulsador: <strong>{detailPdv.ultimaVisita.usuarios?.nombre}</strong></p>
+                        <p className="text-xs text-gray-500">Fecha: <strong>{new Date(detailPdv.ultimaVisita.fecha).toLocaleDateString("es-PA")}</strong></p>
+                        {detailPdv.ultimaVisita.observacion && <p className="text-xs text-gray-700 mt-1">{detailPdv.ultimaVisita.observacion}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Costos y pagos */}
+                  {(detailPdv.cotizaciones.length > 0 || detailPdv.pagos.length > 0) && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">Información de Costos</h3>
+                      {detailPdv.cotizaciones.length > 0 && (
+                        <p className="text-xs text-gray-600 mb-2">
+                          💰 Rango: ${detailPdv.cotizaciones[0]?.cotizacion?.precioMin?.toLocaleString()} - ${detailPdv.cotizaciones[0]?.cotizacion?.precioMax?.toLocaleString()}
+                        </p>
+                      )}
+                      {detailPdv.pagos.length > 0 && (
+                        <p className="text-xs text-gray-600">
+                          ✓ Pagado: ${detailPdv.pagos.reduce((sum: number, p: any) => sum + (p.pago?.monto || 0), 0).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Solicitudes recientes */}
+                  {detailPdv.solicitudes.length > 0 && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">Solicitudes Recientes</h3>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {detailPdv.solicitudes.map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
+                            <span className="font-medium">{s.tipo} • {s.estado}</span>
+                            <span className="text-gray-500">{new Date(s.createdAt).toLocaleDateString("es-PA")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between gap-3">
+              <button
+                onClick={() => openEdit(detailPdv.pdv)}
+                className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => setDetailPdv(null)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Editar PDV */}
       {editingPdv && (
