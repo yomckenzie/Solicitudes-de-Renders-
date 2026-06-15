@@ -110,6 +110,7 @@ export default function PdvDetallePage() {
   const [data, setData] = useState<DetallePdv | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/pdv/${id}/detalle`)
@@ -312,7 +313,8 @@ export default function PdvDetallePage() {
                           <img
                             src={m.imagenes[0]}
                             alt={m.tipo}
-                            className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm"
+                            onClick={() => setZoomImage(m.imagenes[0])}
+                            className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md hover:scale-105 transition-all"
                           />
                         ) : (
                           <div className="w-14 h-14 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center">
@@ -401,6 +403,37 @@ export default function PdvDetallePage() {
           </div>
         )}
       </div>
+
+      {/* Modal Zoom de Imagen */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setZoomImage(null)}
+        >
+          <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Previsualizar Imagen</h3>
+              <button
+                onClick={() => setZoomImage(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="bg-gray-100 p-8 flex items-center justify-center min-h-96">
+              <img
+                src={zoomImage}
+                alt="Zoom"
+                onClick={(e) => e.stopPropagation()}
+                className="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
+              />
+            </div>
+            <div className="p-4 bg-gray-50 text-center text-sm text-gray-600">
+              Haz click fuera para cerrar
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

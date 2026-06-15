@@ -43,6 +43,7 @@ export default function PdvPage() {
   const [provincia, setProvincia] = useState("");
   const [estado, setEstado] = useState("");
   const [marca, setMarca] = useState("");
+  const [sortEstado, setSortEstado] = useState(false);
 
   // Modal nuevo PDV
   const [showModal, setShowModal] = useState(false);
@@ -205,6 +206,16 @@ export default function PdvPage() {
             <option value="">Todas las marcas</option>
             {MARCAS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
+          <button
+            onClick={() => setSortEstado(!sortEstado)}
+            className={`border rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              sortEstado
+                ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            ⚠️ Críticos Primero
+          </button>
           {(q || provincia || estado || marca) && (
             <button onClick={() => { setQ(""); setProvincia(""); setEstado(""); setMarca(""); setPage(1); }} className="border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
               Limpiar
@@ -234,7 +245,10 @@ export default function PdvPage() {
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">Cargando...</td></tr>
               ) : pdvs.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No se encontraron PDVs.</td></tr>
-              ) : pdvs.map((pdv) => (
+              ) : (sortEstado ? [...pdvs].sort((a, b) => {
+                const orden = { "Critico": 0, "Desactualizado": 1, "Normal": 2, "Actualizado": 3 };
+                return (orden[a.estado as keyof typeof orden] ?? 99) - (orden[b.estado as keyof typeof orden] ?? 99);
+              }) : pdvs).map((pdv) => (
                 <tr key={pdv.id} className="hover:bg-blue-50 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/pdv/${pdv.id}`)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
