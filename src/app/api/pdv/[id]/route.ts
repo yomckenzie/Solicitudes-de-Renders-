@@ -13,7 +13,7 @@ export async function PATCH(
     if ("espacio" in body) updates.espacio = body.espacio;
     if ("provincia" in body) updates.provincia = body.provincia;
     if ("cadena" in body) updates.cadena = body.cadena;
-    if ("mallZona" in body) updates.mall_zona = body.mallZona;
+    if ("mallZona" in body) updates.mallZona = body.mallZona;
     if ("marca" in body) updates.marca = body.marca;
     if ("impulsador" in body) updates.impulsador = body.impulsador;
     if ("estado" in body) updates.estado = body.estado;
@@ -37,7 +37,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

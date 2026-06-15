@@ -18,8 +18,8 @@ export async function PATCH(
       .update({ estado })
       .eq("id", id)
       .select(`
-        id, tipo, estado, marca, notas, created_at,
-        puntos_de_venta(numero_pdv, cadena, mall_zona),
+        id, tipo, estado, marca, notas, createdAt,
+        puntos_de_venta(numeroPdv, cadena, mallZona),
         usuarios(nombre)
       `)
       .single();

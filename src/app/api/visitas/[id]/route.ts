@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -11,8 +11,8 @@ export async function GET(
     const { data, error } = await supabaseAdmin
       .from("visitas")
       .select(`
-        id, fecha, observacion, estado_espacio,
-        puntos_de_venta(numero_pdv, cadena, mall_zona, provincia),
+        id, fecha, observacion, estadoEspacio,
+        puntos_de_venta(numeroPdv, cadena, mallZona, provincia),
         usuarios(nombre)
       `)
       .eq("id", id)

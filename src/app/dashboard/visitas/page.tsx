@@ -9,11 +9,11 @@ type Visita = {
   id: string;
   fecha: string;
   observacion: string;
-  estado_espacio: EstadoEspacio;
+  estadoEspacio: EstadoEspacio;
   puntos_de_venta: {
-    numero_pdv: number;
+    numeroPdv: number;
     cadena: string;
-    mall_zona: string;
+    mallZona: string;
     provincia: string;
   } | null;
   usuarios: {
@@ -156,12 +156,12 @@ export default function VisitasPage() {
                   <tr key={v.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono font-medium text-gray-700 text-xs">{v.id.slice(0, 8)}</td>
                     <td className="px-4 py-3 text-xs text-gray-600">
-                      PDV-{v.puntos_de_venta?.numero_pdv} — {v.puntos_de_venta?.cadena}
+                      PDV-{v.puntos_de_venta?.numeroPdv} — {v.puntos_de_venta?.cadena}
                     </td>
                     <td className="px-4 py-3 text-gray-700">{v.usuarios?.nombre}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(v.fecha).toLocaleDateString("es-PA")}</td>
                     <td className="px-4 py-3">
-                      <BadgeEstadoEspacio estado={v.estado_espacio} />
+                      <BadgeEstadoEspacio estado={v.estadoEspacio} />
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{v.observacion || "—"}</td>
                     <td className="px-4 py-3">
@@ -286,9 +286,9 @@ export default function VisitasPage() {
               <div>
                 <p className="text-gray-500 text-xs">Punto de Venta</p>
                 <p className="font-semibold">
-                  PDV-{detailModal.puntos_de_venta?.numero_pdv} — {detailModal.puntos_de_venta?.cadena}
+                  PDV-{detailModal.puntos_de_venta?.numeroPdv} — {detailModal.puntos_de_venta?.cadena}
                 </p>
-                <p className="text-gray-600 text-xs">{detailModal.puntos_de_venta?.mall_zona}</p>
+                <p className="text-gray-600 text-xs">{detailModal.puntos_de_venta?.mallZona}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-xs">Impulsador</p>
@@ -301,7 +301,7 @@ export default function VisitasPage() {
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs">Estado</p>
-                  <BadgeEstadoEspacio estado={detailModal.estado_espacio} />
+                  <BadgeEstadoEspacio estado={detailModal.estadoEspacio} />
                 </div>
               </div>
               <div>
