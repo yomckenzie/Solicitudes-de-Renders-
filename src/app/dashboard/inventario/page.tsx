@@ -60,6 +60,13 @@ export default function InventarioPage() {
     estado: "Normal",
   });
 
+  // Modal editar mueble (medidas)
+  const [editTarget, setEditTarget] = useState<MuebleRow | null>(null);
+  const [editMedidas, setEditMedidas] = useState("");
+  const [editEstado, setEditEstado] = useState("Normal");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
   const fetchInventario = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -108,6 +115,37 @@ export default function InventarioPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTarget) return;
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/inventario/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ medidas: editMedidas || null, estado: editEstado }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error ?? "Error al guardar");
+      }
+      setEditTarget(null);
+      fetchInventario();
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  function openEdit(m: MuebleRow) {
+    setEditTarget(m);
+    setEditMedidas(m.medidas ?? "");
+    setEditEstado(m.estado);
+    setEditError("");
   }
 
   const sinMedidas = muebles.filter(m => !m.medidas).length;
@@ -216,6 +254,7 @@ export default function InventarioPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Cantidad</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Medidas</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Estado</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -271,6 +310,14 @@ export default function InventarioPage() {
                       <td className="px-4 py-3">
                         <BadgeEstadoEspacio estado={m.estado as never} />
                       </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => openEdit(m)}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                        >
+                          {m.medidas ? "Editar" : "Agregar medidas"}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -307,6 +354,51 @@ export default function InventarioPage() {
           )}
         </div>
       </div>
+
+      {/* Modal Editar Medidas */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Editar mueble</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {TIPO_LABELS[editTarget.tipo] ?? editTarget.tipo} — {editTarget.categoria}
+                  {editTarget.puntos_de_venta && ` · PDV-${String(editTarget.puntos_de_venta.numeroPdv).padStart(3,"0")} ${editTarget.puntos_de_venta.cadena}`}
+                </p>
+              </div>
+              <button onClick={() => setEditTarget(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEditSave} className="px-6 py-5 space-y-4">
+              <div>
+                <label className={LABEL}>Medidas</label>
+                <input
+                  type="text"
+                  value={editMedidas}
+                  onChange={e => setEditMedidas(e.target.value)}
+                  className={INPUT}
+                  placeholder="Ej: 1.20m × 0.60m × 2.00m"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1">Formato libre: ancho × fondo × alto</p>
+              </div>
+              <div>
+                <label className={LABEL}>Estado</label>
+                <select value={editEstado} onChange={e => setEditEstado(e.target.value)} className={INPUT}>
+                  {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+              {editError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{editError}</p>}
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setEditTarget(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
+                <button type="submit" disabled={editSaving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                  {editSaving ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal Agregar Mueble */}
       {showModal && (
