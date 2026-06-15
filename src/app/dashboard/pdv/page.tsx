@@ -57,6 +57,11 @@ export default function PdvPage() {
     estado: "Normal",
   });
 
+  // Modal editar PDV
+  const [editingPdv, setEditingPdv] = useState<Pdv | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Pdv>>({});
+  const [editSaving, setEditSaving] = useState(false);
+
   const fetchPdvs = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -103,6 +108,35 @@ export default function PdvPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleEditSave() {
+    if (!editingPdv) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/pdv/${editingPdv.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        alert(j.error || "Error al guardar");
+        return;
+      }
+      setEditingPdv(null);
+      setEditForm({});
+      fetchPdvs();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  function openEdit(pdv: Pdv) {
+    setEditingPdv(pdv);
+    setEditForm({ ...pdv });
   }
 
   const totalPages = Math.ceil(total / pageSize);
@@ -180,7 +214,7 @@ export default function PdvPage() {
               ) : pdvs.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No se encontraron PDVs.</td></tr>
               ) : pdvs.map((pdv) => (
-                <tr key={pdv.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={pdv.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openEdit(pdv)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <MapPin size={14} className="text-gray-400" />
@@ -218,6 +252,70 @@ export default function PdvPage() {
           )}
         </div>
       </div>
+
+      {/* Modal Editar PDV */}
+      {editingPdv && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Editar PDV-{String(editingPdv.numeroPdv).padStart(3, "0")}</h2>
+              <button onClick={() => setEditingPdv(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL}>Espacio (1-3)</label>
+                  <select value={editForm.espacio || 2} onChange={e => setEditForm(f => ({ ...f, espacio: parseInt(e.target.value) }))} className={INPUT}>
+                    <option value="1">1 — Básico</option>
+                    <option value="2">2 — Medio</option>
+                    <option value="3">3 — Premium</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Provincia</label>
+                  <select value={editForm.provincia || "Panamá"} onChange={e => setEditForm(f => ({ ...f, provincia: e.target.value }))} className={INPUT}>
+                    {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL}>Cadena / Tienda</label>
+                  <input type="text" value={editForm.cadena || ""} onChange={e => setEditForm(f => ({ ...f, cadena: e.target.value }))} className={INPUT} />
+                </div>
+                <div>
+                  <label className={LABEL}>Zona / Mall</label>
+                  <input type="text" value={editForm.mallZona || ""} onChange={e => setEditForm(f => ({ ...f, mallZona: e.target.value }))} className={INPUT} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL}>Marca</label>
+                  <select value={editForm.marca || "JohnnyCotton"} onChange={e => setEditForm(f => ({ ...f, marca: e.target.value }))} className={INPUT}>
+                    {MARCAS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Estado</label>
+                  <select value={editForm.estado || "Normal"} onChange={e => setEditForm(f => ({ ...f, estado: e.target.value }))} className={INPUT}>
+                    {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={LABEL}>Impulsador</label>
+                <input type="text" value={editForm.impulsador || ""} onChange={e => setEditForm(f => ({ ...f, impulsador: e.target.value }))} className={INPUT} />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setEditingPdv(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
+                <button onClick={handleEditSave} disabled={editSaving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                  {editSaving ? "Guardando..." : "Guardar Cambios"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Nuevo PDV */}
       {showModal && (

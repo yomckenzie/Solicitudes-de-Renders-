@@ -67,6 +67,9 @@ export default function InventarioPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
+  // Eliminar mueble
+  const [deleting, setDeleting] = useState(false);
+
   const fetchInventario = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -146,6 +149,24 @@ export default function InventarioPage() {
     setEditMedidas(m.medidas ?? "");
     setEditEstado(m.estado);
     setEditError("");
+  }
+
+  async function handleDelete(m: MuebleRow) {
+    if (!confirm(`¿Eliminar este mueble (${TIPO_LABELS[m.tipo]})?`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/inventario/${m.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json();
+        alert(j.error || "Error al eliminar");
+        return;
+      }
+      fetchInventario();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const sinMedidas = muebles.filter(m => !m.medidas).length;
@@ -310,12 +331,19 @@ export default function InventarioPage() {
                       <td className="px-4 py-3">
                         <BadgeEstadoEspacio estado={m.estado as never} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 flex gap-2">
                         <button
                           onClick={() => openEdit(m)}
                           className="text-blue-600 hover:text-blue-800 text-xs font-medium"
                         >
                           {m.medidas ? "Editar" : "Agregar medidas"}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(m)}
+                          disabled={deleting}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50"
+                        >
+                          Eliminar
                         </button>
                       </td>
                     </tr>

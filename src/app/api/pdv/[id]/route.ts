@@ -10,16 +10,20 @@ export async function PATCH(
     const body = await req.json();
 
     const updates: Record<string, unknown> = {};
-    if ("medidas" in body) updates.medidas = body.medidas;
+    if ("espacio" in body) updates.espacio = body.espacio;
+    if ("provincia" in body) updates.provincia = body.provincia;
+    if ("cadena" in body) updates.cadena = body.cadena;
+    if ("mallZona" in body) updates.mall_zona = body.mallZona;
+    if ("marca" in body) updates.marca = body.marca;
+    if ("impulsador" in body) updates.impulsador = body.impulsador;
     if ("estado" in body) updates.estado = body.estado;
-    if ("cantidad" in body) updates.cantidad = Number(body.cantidad);
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
-      .from("mobiliario")
+      .from("puntos_de_venta")
       .update(updates)
       .eq("id", id)
       .select()
@@ -40,7 +44,7 @@ export async function DELETE(
     const { id } = await params;
 
     const { error } = await supabaseAdmin
-      .from("mobiliario")
+      .from("puntos_de_venta")
       .delete()
       .eq("id", id);
 

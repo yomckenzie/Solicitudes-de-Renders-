@@ -68,6 +68,11 @@ export default function SolicitudesPage() {
     creadoPorNombre: "Ventas",
   });
 
+  // Modal cambio de estado
+  const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
+  const [newEstado, setNewEstado] = useState("");
+  const [changingEstado, setChangingEstado] = useState(false);
+
   const fetchSolicitudes = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -107,6 +112,30 @@ export default function SolicitudesPage() {
       setSaveError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleChangeEstado() {
+    if (!selectedSolicitud || !newEstado) return;
+    setChangingEstado(true);
+    try {
+      const res = await fetch(`/api/solicitudes/${selectedSolicitud.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: newEstado }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        alert(j.error || "Error al cambiar estado");
+        return;
+      }
+      setSelectedSolicitud(null);
+      setNewEstado("");
+      fetchSolicitudes();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setChangingEstado(false);
     }
   }
 
@@ -246,7 +275,7 @@ export default function SolicitudesPage() {
                 </tr>
               ) : (
                 solicitudes.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={s.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => { setSelectedSolicitud(s); setNewEstado(s.estado); }}>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tipoColor(s.tipo)}`}>
                         {tipoLabel(s.tipo)}
@@ -275,6 +304,79 @@ export default function SolicitudesPage() {
           </table>
         </div>
       </div>
+
+      {/* Modal Detalle / Cambiar Estado */}
+      {selectedSolicitud && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Detalle de Solicitud</h2>
+              <button onClick={() => setSelectedSolicitud(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Tipo</p>
+                  <p className={`inline-block px-2 py-0.5 rounded-full font-medium ${tipoColor(selectedSolicitud.tipo)}`}>
+                    {tipoLabel(selectedSolicitud.tipo)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Punto de Venta</p>
+                  <p className="font-medium">{pdvLabel(selectedSolicitud)}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-gray-500 text-xs">Marca</p>
+                    <p className="font-medium">{MARCA_LABELS[selectedSolicitud.marca as keyof typeof MARCA_LABELS] ?? selectedSolicitud.marca}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Creado por</p>
+                    <p className="font-medium">{selectedSolicitud.usuarios?.nombre ?? "—"}</p>
+                  </div>
+                </div>
+                {selectedSolicitud.notas && (
+                  <div>
+                    <p className="text-gray-500 text-xs">Notas</p>
+                    <p className="text-gray-700">{selectedSolicitud.notas}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cambiar Estado</label>
+                <select
+                  value={newEstado}
+                  onChange={(e) => setNewEstado(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {ESTADOS_FLUJO.map((e) => (
+                    <option key={e} value={e}>
+                      {ESTADO_SOLICITUD_LABELS[e as keyof typeof ESTADO_SOLICITUD_LABELS]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => setSelectedSolicitud(null)}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleChangeEstado}
+                  disabled={changingEstado || newEstado === selectedSolicitud.estado}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                >
+                  {changingEstado ? "Guardando..." : "Guardar Cambio"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Nueva Solicitud */}
       {showModal && (
