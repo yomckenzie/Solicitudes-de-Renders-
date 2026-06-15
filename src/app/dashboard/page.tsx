@@ -11,9 +11,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase";
-import { PanamaMapa } from "@/components/PanamaMapa";
+import { PanamaMapa, type PdvMapaItem } from "@/components/PanamaMapa";
 
-type PdvRow = { id: string; provincia: string; estado: string; cadena: string; numeroPdv: number };
+type PdvRow = {
+  id: string;
+  provincia: string;
+  estado: string;
+  cadena: string;
+  numeroPdv: number;
+  mallZona: string | null;
+  marca: string | null;
+};
 type VisitaRow = {
   id: string;
   fecha: string;
@@ -64,7 +72,7 @@ async function getDashboardData() {
       supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact", head: true }).eq("estado", "Critico"),
       supabaseAdmin.from("solicitudes_de_render").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("visitas").select("*", { count: "exact", head: true }).gte("createdAt", firstOfMonth),
-      supabaseAdmin.from("puntos_de_venta").select("id, provincia, estado, cadena, numeroPdv"),
+      supabaseAdmin.from("puntos_de_venta").select("id, provincia, estado, cadena, numeroPdv, mallZona, marca"),
       supabaseAdmin
         .from("visitas")
         .select("id, fecha, estadoEspacio, puntos_de_venta(numeroPdv, cadena)")
@@ -92,12 +100,23 @@ async function getDashboardData() {
       else provinciaMap[key].normal++;
     }
 
+    const pdvsMapa: PdvMapaItem[] = allPdvs.map((p) => ({
+      id: p.id,
+      numeroPdv: p.numeroPdv,
+      cadena: p.cadena,
+      mallZona: p.mallZona,
+      provincia: p.provincia,
+      marca: p.marca,
+      estado: p.estado,
+    }));
+
     return {
       totalPdv: pdvRes.count ?? 0,
       criticos: criticoRes.count ?? 0,
       solicitudesActivas: solicitudRes.count ?? 0,
       visitasMes: visitaRes.count ?? 0,
       provinciaMap,
+      pdvsMapa,
       recentVisitas: (recentVisitasRes.data || []) as unknown as VisitaRow[],
       recentSolicitudes: (recentSolicitudesRes.data || []) as unknown as SolicitudRow[],
       criticoPdvs: (criticoPdvsRes.data || []) as unknown as CriticoPdv[],
@@ -109,6 +128,7 @@ async function getDashboardData() {
       solicitudesActivas: 0,
       visitasMes: 0,
       provinciaMap: {},
+      pdvsMapa: [] as PdvMapaItem[],
       recentVisitas: [],
       recentSolicitudes: [],
       criticoPdvs: [],
@@ -148,6 +168,7 @@ export default async function DashboardPage() {
     solicitudesActivas,
     visitasMes,
     provinciaMap,
+    pdvsMapa,
     recentVisitas,
     recentSolicitudes,
     criticoPdvs,
@@ -233,15 +254,34 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Province Map */}
+      {/* Mapa de PDV */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-5">
           <TrendingUp size={20} className="text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Mapa de Cobertura — Panamá</h2>
-          <span className="ml-auto text-xs text-gray-400">Haz click en una provincia para filtrar</span>
+          <h2 className="text-lg font-semibold text-gray-900">Mapa de Puntos de Venta — Panamá</h2>
+          <span className="ml-auto text-xs text-gray-400">Click en un marcador para ver el PDV</span>
         </div>
 
-        <PanamaMapa provinciaMap={provinciaMap} />
+        <PanamaMapa pdvs={pdvsMapa} />
+
+        {/* Resumen por provincia */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mt-5 pt-5 border-t border-gray-100">
+          {Object.entries(provinciaMap)
+            .sort((a, b) => b[1].total - a[1].total)
+            .map(([prov, info]) => (
+              <Link
+                key={prov}
+                href={`/dashboard/pdv?provincia=${encodeURIComponent(prov)}`}
+                className="text-center rounded-lg border border-gray-200 p-2 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              >
+                <p className="text-lg font-bold text-gray-800">{info.total}</p>
+                <p className="text-[10px] font-medium text-gray-500 leading-tight truncate">{prov}</p>
+                {info.critico > 0 && (
+                  <p className="text-[10px] text-red-500 font-medium">⚠ {info.critico}</p>
+                )}
+              </Link>
+            ))}
+        </div>
       </div>
 
       {/* Activity + Critical PDVs */}
