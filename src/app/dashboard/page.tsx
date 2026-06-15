@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase";
+import { PanamaMapa } from "@/components/PanamaMapa";
 
 type PdvRow = { id: string; provincia: string; estado: string; cadena: string; numeroPdv: number };
 type VisitaRow = {
@@ -28,25 +29,6 @@ type SolicitudRow = {
   puntos_de_venta: { numeroPdv: number; cadena: string } | null;
 };
 type CriticoPdv = { id: string; numeroPdv: number; cadena: string; mallZona: string; provincia: string };
-
-const PROVINCIAS_ORDENADAS = [
-  "Chiriquí",
-  "Veraguas",
-  "Coclé",
-  "Herrera",
-  "Chorrera",
-  "Arraijan",
-  "Colón",
-  "Panamá",
-];
-
-const provinciaColor = (count: number) => {
-  if (count === 0) return "bg-gray-50 border-gray-200 text-gray-400";
-  if (count <= 3) return "bg-blue-50 border-blue-200 text-blue-700";
-  if (count <= 8) return "bg-blue-100 border-blue-300 text-blue-800";
-  if (count <= 20) return "bg-blue-200 border-blue-400 text-blue-900";
-  return "bg-blue-600 border-blue-700 text-white";
-};
 
 const estadoSolicitudColor: Record<string, string> = {
   BORRADOR: "bg-gray-100 text-gray-600",
@@ -255,38 +237,11 @@ export default async function DashboardPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-5">
           <TrendingUp size={20} className="text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Cobertura por Provincia</h2>
-          <span className="ml-auto text-xs text-gray-400">Panamá · {totalPdv} puntos de venta</span>
+          <h2 className="text-lg font-semibold text-gray-900">Mapa de Cobertura — Panamá</h2>
+          <span className="ml-auto text-xs text-gray-400">Haz click en una provincia para filtrar</span>
         </div>
 
-        {/* Visual province grid — west to east */}
-        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 mb-4">
-          {PROVINCIAS_ORDENADAS.map(prov => {
-            const info = provinciaMap[prov] || { total: 0, critico: 0, normal: 0 };
-            return (
-              <Link
-                key={prov}
-                href={`/dashboard/pdv?provincia=${encodeURIComponent(prov)}`}
-                className={`rounded-xl border-2 p-3 text-center transition-all hover:scale-105 hover:shadow-md cursor-pointer ${provinciaColor(info.total)}`}
-              >
-                <p className="text-xl font-black">{info.total}</p>
-                <p className="text-xs font-semibold mt-0.5 leading-tight">{prov}</p>
-                {info.critico > 0 && (
-                  <p className="text-xs mt-1 text-red-500 font-medium">⚠ {info.critico}</p>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-50 border border-blue-200 inline-block" /> 1-3 PDV</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-300 inline-block" /> 4-8 PDV</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-200 border border-blue-400 inline-block" /> 9-20 PDV</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-600 border border-blue-700 inline-block" /> 20+ PDV</span>
-          <span className="flex items-center gap-1.5 ml-auto text-red-500"><AlertTriangle size={12} /> Con PDV críticos</span>
-        </div>
+        <PanamaMapa provinciaMap={provinciaMap} />
       </div>
 
       {/* Activity + Critical PDVs */}
