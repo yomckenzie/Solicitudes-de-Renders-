@@ -11,6 +11,10 @@ import {
   BarChart2,
   Settings,
   ClipboardList,
+  Calculator,
+  CreditCard,
+  Wrench,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const navItems = [
@@ -18,6 +22,10 @@ const navItems = [
   { href: "/dashboard/pdv", label: "Puntos de Venta", icon: MapPin },
   { href: "/dashboard/inventario", label: "Inventario", icon: Package },
   { href: "/dashboard/solicitudes", label: "Solicitudes", icon: FileText },
+  { href: "/dashboard/cotizaciones", label: "Cotizaciones", icon: Calculator },
+  { href: "/dashboard/pagos", label: "Pagos", icon: CreditCard },
+  { href: "/dashboard/instalaciones", label: "Instalaciones", icon: Wrench },
+  { href: "/dashboard/renders", label: "Renders", icon: ImageIcon },
   { href: "/dashboard/visitas", label: "Visitas", icon: Eye },
   { href: "/dashboard/tareas", label: "Tareas", icon: ClipboardList },
   { href: "/dashboard/reportes", label: "Reportes", icon: BarChart2 },
