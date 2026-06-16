@@ -281,18 +281,100 @@ docs: actualizar CLAUDE.md con nuevos campos de inventario
 
 ---
 
+## Stack tecnológico (confirmado y en producción)
+
+| Capa | Tecnología | Estado |
+|------|------------|--------|
+| Frontend + Backend | **Next.js 16.2.9** (App Router) | ✅ En producción |
+| Base de datos | **Supabase** (PostgreSQL gestionado) | ✅ Con datos reales |
+| Cliente DB (servidor) | `@supabase/supabase-js` via `supabaseAdmin` | ✅ API routes |
+| Almacenamiento fotos | **Supabase Storage** (bucket `photos/`) | ✅ Funcionando |
+| Mapa | **Leaflet + OpenStreetMap** (sin API key) | ✅ Implementado |
+| Estilos | **Tailwind CSS v4** | ✅ |
+| Despliegue | **Vercel** (auto-deploy desde `main`) | ✅ |
+| Iconos | `lucide-react` | ✅ |
+
+---
+
+## Esquema de base de datos (Supabase)
+
+### Tablas existentes con datos
+
+| Tabla | Registros | Columnas clave |
+|-------|-----------|----------------|
+| `puntos_de_venta` | **179** | id, numeroPdv, espacio, pais, provincia, cadena, mallZona, marca, impulsador, frecuenciaVisita, estado, fechaUltimaVisita |
+| `mobiliario` | **227** | id, pdvId, tipo, categoria, cantidad, medidas, imagenes[], estado, comentarios, fechaInstalacion |
+| `usuarios` | **5** | id, nombre, email, rol, activo |
+| `solicitudes_de_render` | 0 | id, pdvId, tipo, estado, marca, notas, creadoPor, createdAt |
+| `cotizaciones` | 0 | id, pdvId, tipo, precioMin, precioMax, notas |
+| `pagos` | 0 | id, solicitudId, monto, porcentaje, registradoPor, fecha |
+| `instalaciones` | 0 | id, solicitudId, fechasPropuestas[], fechaConfirmada, visitaRealizada |
+| `renders` | 0 | id, solicitudId, archivoUrl, version, aprobadoMercadeo, aprobadoCliente |
+| `visitas` | 0 | id, pdvId, impulsadorId, fecha, fotos[], observacion, estadoEspacio |
+
+### Tabla pendiente de crear (SQL listo)
+- `tareas` — La página `/dashboard/tareas` muestra el SQL para crearla si no existe
+
+### Columna pendiente de agregar
+- `mobiliario.costoAdquisicion` — La UI muestra valores calculados como fallback hasta que se agregue
+
+---
+
 ## Estado actual del proyecto
 
-- [x] Repositorio creado
-- [x] Procesos de negocio documentados (este archivo)
-- [x] Estructura de datos del inventario documentada (basada en Excel/PDFs existentes)
-- [ ] Stack tecnológico confirmado
-- [ ] Base de datos y esquema definidos en Prisma
-- [ ] Autenticación y roles implementados
-- [ ] Módulo de inventario de PDV (importar datos existentes)
-- [ ] Módulo de solicitudes de render (Proceso 3)
-- [ ] Módulo de cotizaciones (Proceso 1)
-- [ ] Módulo de retiro de muebles (Proceso 2)
-- [ ] Módulo de registro de visitas con fotos
-- [ ] Dashboard por rol
-- [ ] Reportes y exportaciones
+### ✅ Completado y funcionando
+
+**Módulos principales:**
+- [x] **Dashboard** — KPIs en tiempo real, mapa Leaflet interactivo con 179 PDV ubicados, actividad reciente, PDV críticos, acciones rápidas
+- [x] **Puntos de Venta** — Lista filtrable (provincia, cadena, marca, estado, búsqueda), ordenar por críticos, crear/editar/eliminar PDV
+- [x] **Detalle PDV** — Página dedicada con header oscuro, métricas, tabla de mobiliario con fotos, costos, estado, zoom de imágenes, última visita
+- [x] **Inventario** — Tabla de mobiliario por PDV, editar medidas/estado/cantidad, eliminar mueble, agregar mueble
+- [x] **Solicitudes** — Kanban + tabla, filtros por tipo/estado, crear solicitud (modal), cambiar estado del flujo
+- [x] **Visitas** — Lista de visitas, registrar visita con subida de múltiples fotos, ver detalle completo
+- [x] **Tareas** — Tablero Kanban (Pendiente / En Progreso / Completada), crear/asignar/cambiar estado/eliminar tareas
+- [x] **Reportes** — KPIs, gráficos de barras por provincia, cadena, marca, tipo de mueble, estado de solicitudes
+- [x] **Configuración** — Estado de tablas en DB, lista de usuarios
+
+**APIs disponibles:**
+- [x] `GET/POST /api/pdv` — Lista y crear PDV
+- [x] `PATCH/DELETE /api/pdv/[id]` — Editar y eliminar PDV
+- [x] `GET /api/pdv/[id]/detalle` — Detalle completo con mobiliario, visitas, solicitudes
+- [x] `GET/POST /api/inventario` — Lista y agregar mueble
+- [x] `PATCH/DELETE /api/inventario/[id]` — Editar y eliminar mueble
+- [x] `GET/POST /api/solicitudes` — Lista y crear solicitud
+- [x] `PATCH /api/solicitudes/[id]` — Cambiar estado de solicitud
+- [x] `GET/POST /api/visitas` — Lista y registrar visita
+- [x] `GET /api/visitas/[id]` — Detalle de visita
+- [x] `GET/POST /api/tareas` — Lista y crear tarea
+- [x] `PATCH/DELETE /api/tareas/[id]` — Actualizar y eliminar tarea
+- [x] `POST /api/upload` — Subir foto a Supabase Storage
+- [x] `GET /api/reportes` — Datos agregados para gráficos
+- [x] `GET /api/usuarios` — Lista de usuarios
+
+**Infraestructura:**
+- [x] Geocodificador de Panamá (`src/lib/geo-panama.ts`) — 179/179 PDV ubicados
+- [x] Badge de estados (`src/components/ui/Badge.tsx`)
+- [x] Sidebar con navegación activa
+- [x] Tipos TypeScript centralizados (`src/types/index.ts`)
+
+### ⚠️ Pendiente (requiere acción en Supabase Studio)
+
+1. **Crear tabla `tareas`** — Ir a `/dashboard/tareas`, copiar el SQL y ejecutarlo en Supabase Studio → SQL Editor
+2. **Agregar columna `costoAdquisicion`** en tabla `mobiliario`:
+   ```sql
+   ALTER TABLE mobiliario ADD COLUMN IF NOT EXISTS "costoAdquisicion" DECIMAL(10,2);
+   ```
+
+### 🔲 Por desarrollar (próximas funcionalidades)
+
+- [ ] **Autenticación y login** — NextAuth.js con roles; actualmente sin control de acceso
+- [ ] **Dashboard por rol** — Ventas ve solicitudes, Yovanni ve tareas, Yarrisa ve instalaciones
+- [ ] **Módulo de cotizaciones** — Tabla existe, falta UI para Proceso 1
+- [ ] **Módulo de pagos/abonos** — Tabla existe, falta UI para registrar el 70%
+- [ ] **Módulo de instalaciones** — Tabla existe, falta UI para fechas propuestas
+- [ ] **Módulo de renders** — Subir archivos PDF/imágenes de propuestas de diseño
+- [ ] **Notificaciones** — Alertas de tareas vencidas, PDV críticos, solicitudes pendientes
+- [ ] **Exportar a Excel/PDF** — Reportes descargables
+- [ ] **Filtros en el mapa** — Filtrar marcadores por estado/marca/provincia desde el mapa
+- [ ] **Historial de cambios** — Log de quién cambió qué y cuándo
+- [ ] **App móvil (PWA)** — Para que impulsadores registren visitas desde el celular
