@@ -347,7 +347,16 @@ docs: actualizar CLAUDE.md con nuevos campos de inventario
 - [x] `GET /api/visitas/[id]` — Detalle de visita
 - [x] `GET/POST /api/tareas` — Lista y crear tarea
 - [x] `PATCH/DELETE /api/tareas/[id]` — Actualizar y eliminar tarea
-- [x] `POST /api/upload` — Subir foto a Supabase Storage
+- [x] `GET/POST /api/cotizaciones` — Lista (filtros: tipo, pdvId) y crear cotización
+- [x] `PATCH/DELETE /api/cotizaciones/[id]` — Actualizar y eliminar cotización
+- [x] `GET/POST /api/pagos` — Lista (filtro: solicitudId) y registrar pago/abono
+- [x] `PATCH/DELETE /api/pagos/[id]` — Actualizar y eliminar pago
+- [x] `GET/POST /api/instalaciones` — Lista (filtro: solicitudId) y crear instalación con fechas propuestas
+- [x] `PATCH/DELETE /api/instalaciones/[id]` — Actualizar y eliminar instalación, marcar visita realizada
+- [x] `GET/POST /api/renders` — Lista (filtro: solicitudId) y subir render (imagen/PDF) con versionado
+- [x] `PATCH/DELETE /api/renders/[id]` — Actualizar aprobaciones (mercadeo/cliente) y eliminar
+- [x] `POST /api/upload` — Subir foto/archivo a Supabase Storage
+- [x] `GET /api/auth/[...nextauth]` — NextAuth (signin/signout/callback/csrf/session)
 - [x] `GET /api/reportes` — Datos agregados para gráficos
 - [x] `GET /api/usuarios` — Lista de usuarios
 
@@ -367,14 +376,33 @@ docs: actualizar CLAUDE.md con nuevos campos de inventario
 
 ### 🔲 Por desarrollar (próximas funcionalidades)
 
-- [ ] **Autenticación y login** — NextAuth.js con roles; actualmente sin control de acceso
 - [ ] **Dashboard por rol** — Ventas ve solicitudes, Yovanni ve tareas, Yarrisa ve instalaciones
-- [ ] **Módulo de cotizaciones** — Tabla existe, falta UI para Proceso 1
-- [ ] **Módulo de pagos/abonos** — Tabla existe, falta UI para registrar el 70%
-- [ ] **Módulo de instalaciones** — Tabla existe, falta UI para fechas propuestas
-- [ ] **Módulo de renders** — Subir archivos PDF/imágenes de propuestas de diseño
 - [ ] **Notificaciones** — Alertas de tareas vencidas, PDV críticos, solicitudes pendientes
 - [ ] **Exportar a Excel/PDF** — Reportes descargables
 - [ ] **Filtros en el mapa** — Filtrar marcadores por estado/marca/provincia desde el mapa
-- [ ] **Historial de cambios** — Log de quién cambió qué y cuándo
+- [ ] **Historial de cambios (audit log)** — Log de quién cambió qué y cuándo
 - [ ] **App móvil (PWA)** — Para que impulsadores registren visitas desde el celular
+- [ ] **Módulo de retiro de muebles (Proceso 2)** — No está en ninguna tabla todavía
+
+---
+
+## Configuración de entorno
+
+Variables requeridas (ver `.env.example`):
+
+| Variable | Origen | Notas |
+|----------|--------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Settings → API | URL del proyecto |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API | Anon/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API | **NUNCA exponer al cliente** — solo API routes |
+| `NEXTAUTH_SECRET` | `openssl rand -base64 32` | **Requerido en producción** — sin esto la auth no funciona |
+
+**Vercel:** Setear las 4 en Project Settings → Environment Variables.
+
+**Crear primer usuario admin (local):**
+```bash
+NEXTAUTH_SECRET=tu-secret \
+NEXT_PUBLIC_SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+npx ts-node scripts/create-user.ts tucorreo@dominio.com TuPassword "Tu Nombre" admin
+```

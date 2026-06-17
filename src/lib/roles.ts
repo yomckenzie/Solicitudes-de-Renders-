@@ -10,14 +10,18 @@ export type CurrentUser = {
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return null;
-  return {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-    rol: session.user.rol,
-  };
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return null;
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      rol: session.user.rol,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function hasRole(allowed: Rol | Rol[]): Promise<boolean> {

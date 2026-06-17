@@ -1,8 +1,10 @@
 import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
-export default withAuth(
+// Wrapper que retorna la función "proxy" (nombre requerido por Next.js 16)
+const authMiddleware = withAuth(
   function middleware() {
-    return;
+    return NextResponse.next();
   },
   {
     pages: {
@@ -10,6 +12,8 @@ export default withAuth(
     },
   }
 );
+
+export default authMiddleware;
 
 export const config = {
   matcher: [
