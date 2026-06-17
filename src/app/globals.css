@@ -12,15 +12,66 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─── Responsive overrides (móvil primero) ─── */
+
+@media (max-width: 767px) {
+  main .p-8 {
+    padding: 1rem !important;
+  }
+  main .p-6 {
+    padding: 0.75rem !important;
+  }
+  main .p-5 {
+    padding: 0.75rem !important;
+  }
+  main .gap-5,
+  main .gap-6 {
+    gap: 0.75rem !important;
+  }
+  main h1.text-2xl {
+    font-size: 1.25rem !important;
+    line-height: 1.75rem !important;
+  }
+  main h2.text-lg {
+    font-size: 1rem !important;
+  }
+  main table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  /* Modales: full-screen en móvil */
+  main .fixed.inset-0 > .bg-white.rounded-xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    overflow-y: auto;
+  }
+  /* Header de páginas: stack vertical cuando tiene botón al lado */
+  main > div > div:first-child.flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  /* KPIs en grids: 2 columnas en lugar de 3 o 4 */
+  main .grid-cols-4,
+  main .md\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Prevenir scroll horizontal accidental en el body */
+html,
+body {
+  overflow-x: hidden;
 }
