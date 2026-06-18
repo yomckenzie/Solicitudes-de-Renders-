@@ -47,6 +47,7 @@ type DetallePdv = {
   mobiliarios: Mueble[];
   totalMobiliarios: number;
   ultimaVisita: Visita | null;
+  visitas: Visita[];
   solicitudes: Solicitud[];
   cotizaciones: any[];
   pagos: any[];
@@ -135,7 +136,7 @@ export default function PdvDetallePage() {
     return <div className="p-8 text-red-500">PDV no encontrado.</div>;
   }
 
-  const { pdv, mobiliarios, totalMobiliarios, ultimaVisita, cotizaciones, pagos } = data;
+  const { pdv, mobiliarios, totalMobiliarios, ultimaVisita, visitas = [], solicitudes = [], cotizaciones, pagos } = data;
 
   const filtered = mobiliarios.filter(m => {
     const s = search.toLowerCase();
@@ -402,6 +403,115 @@ export default function PdvDetallePage() {
             )}
           </div>
         )}
+
+        {/* Solicitudes de render */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">
+              Solicitudes de Render
+              <span className="ml-2 text-sm font-normal text-gray-500">({solicitudes.length})</span>
+            </h2>
+            <button
+              onClick={() => router.push("/dashboard/solicitudes")}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+            >
+              Ver todas →
+            </button>
+          </div>
+          {solicitudes.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
+              No hay solicitudes de render para este PDV.
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Tipo</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Estado</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Marca</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Fecha</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {solicitudes.map((s) => (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-800 capitalize">{s.tipo?.replace("_", " ")}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                          {ESTADO_SOLICITUD_LABELS[s.estado as keyof typeof ESTADO_SOLICITUD_LABELS] ?? s.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                          {MARCA_LABELS[s.marca as keyof typeof MARCA_LABELS] ?? s.marca}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(s.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => router.push(`/dashboard/solicitudes/${s.id}`)}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                        >
+                          Ver →
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Historial de Visitas */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">
+              Historial de Visitas
+              <span className="ml-2 text-sm font-normal text-gray-500">({visitas.length})</span>
+            </h2>
+            <button
+              onClick={() => router.push("/dashboard/visitas")}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+            >
+              Registrar visita →
+            </button>
+          </div>
+          {visitas.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
+              No hay visitas registradas para este PDV.
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Fecha</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Impulsador</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Estado</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Observación</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {visitas.map((v) => (
+                    <tr key={v.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-700 font-medium text-xs">{formatDate(v.fecha)}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm">{v.usuarios?.nombre ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ESTADO_TEXT[v.estadoEspacio] ?? "bg-gray-100 text-gray-600"}`}>
+                          {v.estadoEspacio}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{v.observacion || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal Zoom de Imagen */}

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus, Camera, X } from "lucide-react";
 import { BadgeEstadoEspacio } from "@/components/ui/Badge";
 import { EstadoEspacio } from "@/types";
 
 type Visita = {
   id: string;
+  pdvId: string | null;
   fecha: string;
   observacion: string;
   estadoEspacio: EstadoEspacio;
@@ -199,7 +201,16 @@ export default function VisitasPage() {
                   <tr key={v.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono font-medium text-gray-700 text-xs">{v.id.slice(0, 8)}</td>
                     <td className="px-4 py-3 text-xs text-gray-600">
-                      PDV-{v.puntos_de_venta?.numeroPdv} — {v.puntos_de_venta?.cadena}
+                      {v.pdvId ? (
+                        <Link
+                          href={`/dashboard/pdv/${v.pdvId}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                        >
+                          PDV-{v.puntos_de_venta?.numeroPdv} — {v.puntos_de_venta?.cadena}
+                        </Link>
+                      ) : (
+                        `PDV-${v.puntos_de_venta?.numeroPdv} — ${v.puntos_de_venta?.cadena}`
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-700">{v.usuarios?.nombre}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(v.fecha).toLocaleDateString("es-PA")}</td>

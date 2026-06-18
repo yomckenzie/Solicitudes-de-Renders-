@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus, X, ClipboardList, AlertCircle, Copy, Check } from "lucide-react";
 
 type Tarea = {
@@ -58,6 +59,7 @@ export default function TareasPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detailTarea, setDetailTarea] = useState<Tarea | null>(null);
+  const [solicitudes, setSolicitudes] = useState<{ id: string; label: string }[]>([]);
   const [form, setForm] = useState({
     titulo: "",
     descripcion: "",
@@ -65,10 +67,21 @@ export default function TareasPage() {
     creadaPor: "Yarrisa",
     prioridad: "Media" as "Alta" | "Media" | "Baja",
     fechaLimite: "",
+    solicitudId: "",
   });
 
   useEffect(() => {
     fetchTareas();
+    fetch("/api/solicitudes?limit=100")
+      .then(r => r.json())
+      .then(j => {
+        const list = (j.data || []).map((s: Record<string, unknown>) => ({
+          id: s.id as string,
+          label: `Sol. ${String(s.id as string).slice(0, 6)} — ${s.tipo} ${s.marca ?? ""}`.trim(),
+        }));
+        setSolicitudes(list);
+      })
+      .catch(() => {});
   }, []);
 
   const fetchTareas = async () => {
@@ -103,7 +116,7 @@ export default function TareasPage() {
         return;
       }
       setShowModal(false);
-      setForm({ titulo: "", descripcion: "", asignadaA: "Yovanni", creadaPor: "Yarrisa", prioridad: "Media", fechaLimite: "" });
+      setForm({ titulo: "", descripcion: "", asignadaA: "Yovanni", creadaPor: "Yarrisa", prioridad: "Media", fechaLimite: "", solicitudId: "" });
       fetchTareas();
     } catch (e) {
       alert(String(e));
@@ -344,6 +357,22 @@ export default function TareasPage() {
               </div>
             </div>
 
+            {solicitudes.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Solicitud vinculada (opcional)</label>
+                <select
+                  value={form.solicitudId}
+                  onChange={e => setForm(f => ({ ...f, solicitudId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sin solicitud</option>
+                  {solicitudes.map(s => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
               <button
                 onClick={() => setShowModal(false)}
@@ -405,6 +434,17 @@ export default function TareasPage() {
                   <p className="text-xs text-gray-500">Estado actual</p>
                   <p className="font-medium text-gray-800">{detailTarea.estado}</p>
                 </div>
+                {detailTarea.solicitudId && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500">Solicitud vinculada</p>
+                    <Link
+                      href={`/dashboard/solicitudes/${detailTarea.solicitudId}`}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                    >
+                      Ver solicitud →
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
 

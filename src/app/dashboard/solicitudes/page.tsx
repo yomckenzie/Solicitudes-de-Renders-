@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search, X, FileText } from "lucide-react";
 import { BadgeEstadoSolicitud } from "@/components/ui/Badge";
 import { MARCA_LABELS, ESTADO_SOLICITUD_LABELS } from "@/types";
@@ -49,6 +50,7 @@ function tipoLabel(tipo: string) {
 }
 
 export default function SolicitudesPage() {
+  const router = useRouter();
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -275,7 +277,7 @@ export default function SolicitudesPage() {
                 </tr>
               ) : (
                 solicitudes.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => { setSelectedSolicitud(s); setNewEstado(s.estado); }}>
+                  <tr key={s.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/solicitudes/${s.id}`)}>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tipoColor(s.tipo)}`}>
                         {tipoLabel(s.tipo)}

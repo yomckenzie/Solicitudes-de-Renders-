@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Plus, Package, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { BadgeEstadoEspacio } from "@/components/ui/Badge";
 import { MARCA_LABELS } from "@/types";
 
 type MuebleRow = {
   id: string;
+  pdvId: string | null;
   tipo: string;
   categoria: string;
   cantidad: number;
@@ -297,9 +299,16 @@ export default function InventarioPage() {
                   return (
                     <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 text-xs text-gray-600">
-                        {pdv
-                          ? `PDV-${String(pdv.numeroPdv).padStart(3, "0")} — ${pdv.cadena} ${pdv.mallZona}`
-                          : "—"}
+                        {pdv && m.pdvId ? (
+                          <Link
+                            href={`/dashboard/pdv/${m.pdvId}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            PDV-{String(pdv.numeroPdv).padStart(3, "0")} — {pdv.cadena} {pdv.mallZona}
+                          </Link>
+                        ) : pdv ? (
+                          `PDV-${String(pdv.numeroPdv).padStart(3, "0")} — ${pdv.cadena} ${pdv.mallZona}`
+                        ) : "—"}
                       </td>
                       <td className="px-4 py-3">
                         {pdv && (

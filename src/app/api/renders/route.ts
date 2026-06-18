@@ -129,6 +129,20 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Auto-avanzar solicitud a EN_DISENIO si estaba en APROBADA o EN_MEDICION
+    const { data: sol } = await supabaseAdmin
+      .from("solicitudes_de_render")
+      .select("estado")
+      .eq("id", solicitudId)
+      .single();
+    if (sol && ["APROBADA", "EN_MEDICION"].includes(sol.estado)) {
+      await supabaseAdmin
+        .from("solicitudes_de_render")
+        .update({ estado: "EN_DISENIO" })
+        .eq("id", solicitudId);
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

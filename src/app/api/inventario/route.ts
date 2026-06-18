@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     let query = supabaseAdmin
       .from("mobiliario")
-      .select(`id, tipo, categoria, cantidad, medidas, estado, createdAt, puntos_de_venta(numeroPdv, cadena, mallZona, marca, provincia)`, { count: "exact" });
+      .select(`id, pdvId, tipo, categoria, cantidad, medidas, estado, createdAt, puntos_de_venta(numeroPdv, cadena, mallZona, marca, provincia)`, { count: "exact" });
 
     if (tipo) query = query.eq("tipo", tipo);
     if (categoria) query = query.eq("categoria", categoria);

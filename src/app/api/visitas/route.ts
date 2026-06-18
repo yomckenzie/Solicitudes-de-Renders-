@@ -6,7 +6,7 @@ export async function GET(_req: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from("visitas")
       .select(`
-        id, fecha, observacion, estadoEspacio,
+        id, pdvId, fecha, observacion, estadoEspacio,
         puntos_de_venta(numeroPdv, cadena, mallZona, provincia),
         usuarios(nombre)
       `)
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         observacion: observacion || null,
       })
       .select(`
-        id, fecha, observacion, estadoEspacio,
+        id, pdvId, fecha, observacion, estadoEspacio,
         puntos_de_venta(numeroPdv, cadena, mallZona),
         usuarios(nombre)
       `)
