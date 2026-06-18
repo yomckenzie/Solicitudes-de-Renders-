@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Plus, Package, ChevronLeft, ChevronRight, X, Search, MapPin } from "lucide-react";
+import { Plus, Package, ChevronLeft, ChevronRight, X, Search, MapPin, Camera, AlertCircle, Copy, Check } from "lucide-react";
 import { BadgeEstadoEspacio } from "@/components/ui/Badge";
 import { MARCA_LABELS } from "@/types";
+import MedidasEditor from "@/components/formularios/MedidasEditor";
+import { type Medida, parseMedidas, serializeMedidas, medidasResumen } from "@/lib/medidas";
 
 type MuebleRow = {
   id: string;
@@ -14,6 +16,9 @@ type MuebleRow = {
   cantidad: number;
   medidas: string | null;
   estado: string;
+  imagenes: string[] | null;
+  propiedad: string | null;
+  material: string | null;
   puntos_de_venta: {
     numeroPdv: number;
     cadena: string;
@@ -62,6 +67,11 @@ const PROVINCIAS = ["Panamá", "Chorrera", "Arraijan", "Colón", "Chiriquí", "V
 const INPUT = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
 
+const MATERIALES = ["MDF", "Melamina", "Madera", "Metal", "PVC", "Acrílico", "Mixto"];
+
+const COLUMNS_SQL = `ALTER TABLE mobiliario ADD COLUMN IF NOT EXISTS "propiedad" TEXT DEFAULT 'Propio';
+ALTER TABLE mobiliario ADD COLUMN IF NOT EXISTS "material" TEXT;`;
+
 const MARCA_COLORS: Record<string, string> = {
   JohnnyCotton: "bg-blue-100 text-blue-800",
   ChessKing: "bg-purple-100 text-purple-800",
@@ -107,11 +117,17 @@ export default function InventarioPage() {
 
   // Modal editar mueble
   const [editTarget, setEditTarget] = useState<MuebleRow | null>(null);
-  const [editMedidas, setEditMedidas] = useState("");
+  const [editMedidas, setEditMedidas] = useState<Medida[]>([]);
   const [editCantidad, setEditCantidad] = useState("1");
   const [editEstado, setEditEstado] = useState("Normal");
+  const [editPropiedad, setEditPropiedad] = useState("Propio");
+  const [editMaterial, setEditMaterial] = useState("");
+  const [editImagenes, setEditImagenes] = useState<string[]>([]);
+  const [uploadingFotos, setUploadingFotos] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [needsColumns, setNeedsColumns] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
 
@@ -203,6 +219,30 @@ export default function InventarioPage() {
     }
   }
 
+  async function handleFotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || !editTarget) return;
+    setUploadingFotos(true);
+    const uploaded: string[] = [];
+    const pdv = editTarget.puntos_de_venta;
+    const cadena = pdv?.cadena ?? "General";
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("folder", "inventario");
+        fd.append("cadena", cadena);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!res.ok) continue;
+        const j = await res.json();
+        uploaded.push(j.url);
+      }
+      setEditImagenes(prev => [...prev, ...uploaded]);
+    } finally {
+      setUploadingFotos(false);
+    }
+  }
+
   async function handleEditSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editTarget) return;
@@ -213,15 +253,17 @@ export default function InventarioPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          medidas: editMedidas || null,
+          medidas: serializeMedidas(editMedidas),
           estado: editEstado,
           cantidad: parseInt(editCantidad) || editTarget.cantidad,
+          imagenes: editImagenes,
+          propiedad: editPropiedad,
+          material: editMaterial || null,
         }),
       });
-      if (!res.ok) {
-        const j = await res.json();
-        throw new Error(j.error ?? "Error al guardar");
-      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar");
+      if (json.needsColumns) setNeedsColumns(true);
       setEditTarget(null);
       fetchInventario();
     } catch (err: unknown) {
@@ -233,9 +275,12 @@ export default function InventarioPage() {
 
   function openEdit(m: MuebleRow) {
     setEditTarget(m);
-    setEditMedidas(m.medidas ?? "");
+    setEditMedidas(parseMedidas(m.medidas));
     setEditEstado(m.estado);
     setEditCantidad(String(m.cantidad));
+    setEditPropiedad(m.propiedad ?? "Propio");
+    setEditMaterial(m.material ?? "");
+    setEditImagenes(m.imagenes ?? []);
     setEditError("");
   }
 
@@ -428,9 +473,9 @@ export default function InventarioPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-700 font-medium text-center">{m.cantidad}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 max-w-[160px]">
                         {m.medidas ? (
-                          <span className="text-xs text-gray-600 font-mono">{m.medidas}</span>
+                          <span className="text-xs text-gray-600 truncate block" title={medidasResumen(m.medidas)}>{medidasResumen(m.medidas)}</span>
                         ) : (
                           <span className="text-xs text-red-400 font-medium">Sin medidas</span>
                         )}
@@ -471,8 +516,8 @@ export default function InventarioPage() {
       {/* Modal Editar Mueble */}
       {editTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Editar mueble</h2>
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -482,27 +527,120 @@ export default function InventarioPage() {
               </div>
               <button onClick={() => setEditTarget(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
-            <form onSubmit={handleEditSave} className="px-6 py-5 space-y-4">
-              <div>
-                <label className={LABEL}>Cantidad</label>
-                <input type="number" min="1" value={editCantidad} onChange={e => setEditCantidad(e.target.value)} className={INPUT} />
+
+            <form onSubmit={handleEditSave} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+                {/* Banner SQL si faltan columnas */}
+                {needsColumns && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertCircle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                      <p className="text-xs font-semibold text-amber-800">
+                        Faltan columnas en la base de datos. Ejecuta este SQL en Supabase Studio:
+                      </p>
+                    </div>
+                    <pre className="bg-amber-100 rounded-lg p-3 text-xs font-mono text-amber-900 overflow-x-auto whitespace-pre-wrap">{COLUMNS_SQL}</pre>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(COLUMNS_SQL); setSqlCopied(true); setTimeout(() => setSqlCopied(false), 2000); }}
+                      className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900"
+                    >
+                      {sqlCopied ? <Check size={13} /> : <Copy size={13} />}
+                      {sqlCopied ? "¡Copiado!" : "Copiar SQL"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Cantidad y Estado en fila */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={LABEL}>Cantidad</label>
+                    <input type="number" min="1" value={editCantidad} onChange={e => setEditCantidad(e.target.value)} className={INPUT} />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Estado</label>
+                    <select value={editEstado} onChange={e => setEditEstado(e.target.value)} className={INPUT}>
+                      {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Propiedad y Material en fila */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={LABEL}>Propiedad</label>
+                    <select value={editPropiedad} onChange={e => setEditPropiedad(e.target.value)} className={INPUT}>
+                      <option value="Propio">Propio</option>
+                      <option value="Almacén">Almacén</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Material</label>
+                    <select value={editMaterial} onChange={e => setEditMaterial(e.target.value)} className={INPUT}>
+                      <option value="">Sin especificar</option>
+                      {MATERIALES.map(mat => <option key={mat} value={mat}>{mat}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Medidas por sección */}
+                <div>
+                  <label className={LABEL}>Medidas por sección</label>
+                  <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+                    <MedidasEditor value={editMedidas} onChange={setEditMedidas} />
+                  </div>
+                </div>
+
+                {/* Fotos */}
+                <div>
+                  <label className={LABEL}>Fotos del mueble</label>
+
+                  {/* Previews de fotos existentes */}
+                  {editImagenes.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {editImagenes.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <img src={url} alt={`Foto ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                          <button
+                            type="button"
+                            onClick={() => setEditImagenes(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Botón subir fotos */}
+                  <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                    <Camera size={16} className="text-gray-400" />
+                    <span className="text-sm text-gray-500">
+                      {uploadingFotos ? "Subiendo fotos..." : "Agregar fotos"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={uploadingFotos}
+                      className="hidden"
+                      onChange={handleFotoUpload}
+                    />
+                  </label>
+                  {uploadingFotos && (
+                    <p className="text-xs text-blue-600 mt-1 animate-pulse">Subiendo imágenes...</p>
+                  )}
+                </div>
+
+                {editError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{editError}</p>}
               </div>
-              <div>
-                <label className={LABEL}>Medidas</label>
-                <input type="text" value={editMedidas} onChange={e => setEditMedidas(e.target.value)} className={INPUT} placeholder="Ej: 1.20m × 0.60m × 2.00m" autoFocus />
-                <p className="text-xs text-gray-400 mt-1">Formato libre: ancho × fondo × alto</p>
-              </div>
-              <div>
-                <label className={LABEL}>Estado</label>
-                <select value={editEstado} onChange={e => setEditEstado(e.target.value)} className={INPUT}>
-                  {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-              </div>
-              {editError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{editError}</p>}
-              <div className="flex justify-end gap-3 pt-2">
+
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
                 <button type="button" onClick={() => setEditTarget(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
-                <button type="submit" disabled={editSaving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
-                  {editSaving ? "Guardando..." : "Guardar"}
+                <button type="submit" disabled={editSaving || uploadingFotos} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                  {editSaving ? "Guardando..." : "Guardar cambios"}
                 </button>
               </div>
             </form>
