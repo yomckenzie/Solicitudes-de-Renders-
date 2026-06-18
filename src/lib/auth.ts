@@ -41,26 +41,47 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          console.log("[nextauth] login attempt with missing credentials");
+          return null;
+        }
 
-        const { data, error } = await supabaseAdmin
-          .from("usuarios")
-          .select("id, nombre, email, password, rol, activo")
-          .eq("email", credentials.email.toLowerCase().trim())
-          .eq("activo", true)
-          .maybeSingle();
+        const email = credentials.email.toLowerCase().trim();
 
-        if (error || !data) return null;
+        try {
+          const { data, error } = await supabaseAdmin
+            .from("usuarios")
+            .select("id, nombre, email, password, rol, activo")
+            .eq("email", email)
+            .eq("activo", true)
+            .maybeSingle();
 
-        const ok = await bcrypt.compare(credentials.password, data.password);
-        if (!ok) return null;
+          if (error) {
+            console.error("[nextauth] supabase error:", error.message);
+            return null;
+          }
+          if (!data) {
+            console.log("[nextauth] user not found or inactive:", email);
+            return null;
+          }
 
-        return {
-          id: data.id,
-          email: data.email,
-          name: data.nombre,
-          rol: data.rol as Rol,
-        };
+          const ok = await bcrypt.compare(credentials.password, data.password);
+          if (!ok) {
+            console.log("[nextauth] password mismatch for:", email);
+            return null;
+          }
+
+          console.log("[nextauth] login OK:", email);
+          return {
+            id: data.id,
+            email: data.email,
+            name: data.nombre,
+            rol: data.rol as Rol,
+          };
+        } catch (e) {
+          console.error("[nextauth] authorize threw:", e);
+          return null;
+        }
       },
     }),
   ],

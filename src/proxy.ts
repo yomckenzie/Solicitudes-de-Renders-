@@ -1,19 +1,26 @@
-import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-// Wrapper que retorna la función "proxy" (nombre requerido por Next.js 16)
-const authMiddleware = withAuth(
-  function middleware() {
-    return NextResponse.next();
-  },
-  {
-    pages: {
-      signIn: "/login",
-    },
+// Nombre requerido por Next.js 16 (antes era "middleware")
+export function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  // Buscar el cookie de sesión (en HTTPS se llama __Secure-next-auth.session-token)
+  const sessionToken =
+    request.cookies.get("__Secure-next-auth.session-token")?.value ||
+    request.cookies.get("next-auth.session-token")?.value;
+
+  if (!sessionToken) {
+    // Sin sesión → redirigir a /login preservando la URL original
+    const loginUrl = new URL("/login", request.url);
+    if (pathname !== "/login") {
+      loginUrl.searchParams.set("callbackUrl", pathname + search);
+    }
+    return NextResponse.redirect(loginUrl);
   }
-);
 
-export default authMiddleware;
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
