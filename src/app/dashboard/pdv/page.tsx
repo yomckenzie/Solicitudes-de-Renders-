@@ -27,6 +27,12 @@ const MARCAS = [
   { value: "JCX", label: "JCX" },
   { value: "JCB", label: "JCB" },
 ];
+const CADENAS = [
+  "Stevens", "Conway", "Titan", "Campeon", "Machetazo", "Costo", "La Onda",
+  "Madison", "Picadilly", "Sacks", "DDP", "Ecomoda", "OCA Loca", "Xtra",
+  "Jumbo", "Maestro", "Punto Mayorista", "Punto Poderoso", "Shopping Center",
+  "Amani", "Jordania", "El Fuerte",
+];
 
 const INPUT = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -41,6 +47,7 @@ export default function PdvPage() {
 
   const [q, setQ] = useState("");
   const [provincia, setProvincia] = useState("");
+  const [cadena, setCadena] = useState("");
   const [estado, setEstado] = useState("");
   const [marca, setMarca] = useState("");
   const [sortEstado, setSortEstado] = useState(false);
@@ -74,6 +81,7 @@ export default function PdvPage() {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (provincia) params.set("provincia", provincia);
+    if (cadena) params.set("cadena", cadena);
     if (estado) params.set("estado", estado);
     if (marca) params.set("marca", marca);
     params.set("page", page.toString());
@@ -82,7 +90,7 @@ export default function PdvPage() {
     setPdvs(json.data ?? []);
     setTotal(json.total ?? 0);
     setLoading(false);
-  }, [q, provincia, estado, marca, page]);
+  }, [q, provincia, cadena, estado, marca, page]);
 
   useEffect(() => {
     const t = setTimeout(fetchPdvs, 300);
@@ -182,7 +190,8 @@ export default function PdvPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        {/* Fila 1: búsqueda + botón críticos */}
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-48 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
             <Search size={16} className="text-gray-400" />
@@ -190,22 +199,11 @@ export default function PdvPage() {
               type="text"
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(1); }}
-              placeholder="Buscar por tienda, zona o impulsador..."
+              placeholder="Buscar por zona / mall / impulsador..."
               className="bg-transparent text-sm flex-1 outline-none"
             />
+            {q && <button onClick={() => { setQ(""); setPage(1); }} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>}
           </div>
-          <select value={provincia} onChange={(e) => { setProvincia(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
-            <option value="">Todas las provincias</option>
-            {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <select value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
-            <option value="">Todos los estados</option>
-            {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
-          </select>
-          <select value={marca} onChange={(e) => { setMarca(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
-            <option value="">Todas las marcas</option>
-            {MARCAS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
           <button
             onClick={() => setSortEstado(!sortEstado)}
             className={`border rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -216,12 +214,63 @@ export default function PdvPage() {
           >
             ⚠️ Críticos Primero
           </button>
-          {(q || provincia || estado || marca) && (
-            <button onClick={() => { setQ(""); setProvincia(""); setEstado(""); setMarca(""); setPage(1); }} className="border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
-              Limpiar
+        </div>
+        {/* Fila 2: dropdowns */}
+        <div className="flex flex-wrap gap-3">
+          <select value={marca} onChange={(e) => { setMarca(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
+            <option value="">Todas las marcas</option>
+            {MARCAS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+          <select value={cadena} onChange={(e) => { setCadena(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
+            <option value="">Todas las cadenas</option>
+            {CADENAS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={provincia} onChange={(e) => { setProvincia(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
+            <option value="">Todas las provincias</option>
+            {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
+            <option value="">Todos los estados</option>
+            {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+          {(q || provincia || cadena || estado || marca) && (
+            <button
+              onClick={() => { setQ(""); setProvincia(""); setCadena(""); setEstado(""); setMarca(""); setPage(1); }}
+              className="border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              Limpiar todo
             </button>
           )}
         </div>
+        {/* Chips de filtros activos */}
+        {(marca || cadena || provincia || estado) && (
+          <div className="flex flex-wrap gap-2">
+            {marca && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-3 py-1 text-xs font-medium">
+                {MARCAS.find(m => m.value === marca)?.label ?? marca}
+                <button onClick={() => { setMarca(""); setPage(1); }} className="hover:text-indigo-900"><X size={12} /></button>
+              </span>
+            )}
+            {cadena && (
+              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3 py-1 text-xs font-medium">
+                {cadena}
+                <button onClick={() => { setCadena(""); setPage(1); }} className="hover:text-blue-900"><X size={12} /></button>
+              </span>
+            )}
+            {provincia && (
+              <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 text-xs font-medium">
+                {provincia}
+                <button onClick={() => { setProvincia(""); setPage(1); }} className="hover:text-green-900"><X size={12} /></button>
+              </span>
+            )}
+            {estado && (
+              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-3 py-1 text-xs font-medium">
+                {estado}
+                <button onClick={() => { setEstado(""); setPage(1); }} className="hover:text-amber-900"><X size={12} /></button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tabla */}
