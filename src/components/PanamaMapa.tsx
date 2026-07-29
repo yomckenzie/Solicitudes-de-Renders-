@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { geocodePdv, PANAMA_CENTER, PANAMA_ZOOM, type LatLng } from "@/lib/geo-panama";
+import { geocodePdv, PANAMA_CENTER, PANAMA_ZOOM, PROVINCIAS_PANAMA, type LatLng } from "@/lib/geo-panama";
 import "leaflet/dist/leaflet.css";
 
 export type PdvMapaItem = {
@@ -17,6 +17,8 @@ export type PdvMapaItem = {
 
 interface PanamaMapaProps {
   pdvs: PdvMapaItem[];
+  /** Cuando cambia, el mapa hace zoom al centro de esa provincia */
+  focusProvincia?: string | null;
 }
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -33,8 +35,13 @@ const ESTADO_LABEL: { estado: string; color: string; label: string }[] = [
   { estado: "Actualizado", color: "#22c55e", label: "Actualizado" },
 ];
 
-export function PanamaMapa({ pdvs }: PanamaMapaProps) {
+type MarkerEntry = { marker: import("leaflet").CircleMarker; provincia: string | null };
+
+export function PanamaMapa({ pdvs, focusProvincia }: PanamaMapaProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
+  const initialBoundsRef = useRef<LatLng[] | null>(null);
+  const markersRef = useRef<MarkerEntry[]>([]);
   const router = useRouter();
   const [ubicados, setUbicados] = useState(0);
 
@@ -50,7 +57,7 @@ export function PanamaMapa({ pdvs }: PanamaMapaProps) {
       map = L.map(mapRef.current, {
         center: PANAMA_CENTER,
         zoom: PANAMA_ZOOM,
-        scrollWheelZoom: false,
+        scrollWheelZoom: true,
       });
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -90,19 +97,55 @@ export function PanamaMapa({ pdvs }: PanamaMapaProps) {
           </div>`;
         marker.bindPopup(popupHtml);
         marker.on("dblclick", () => router.push(`/dashboard/pdv/${pdv.id}`));
+        markersRef.current.push({ marker, provincia: pdv.provincia ?? null });
       }
 
       if (bounds.length > 0) {
         map.fitBounds(bounds as [number, number][], { padding: [30, 30] });
+        initialBoundsRef.current = bounds;
       }
+      mapInstanceRef.current = map;
       if (!cancelled) setUbicados(count);
     })();
 
     return () => {
       cancelled = true;
+      mapInstanceRef.current = null;
+      initialBoundsRef.current = null;
+      markersRef.current = [];
       if (map) map.remove();
     };
   }, [pdvs, router]);
+
+  // Reaccionar al cambio de focusProvincia: zoom + filtro visual de marcadores
+  useEffect(() => {
+    const m = mapInstanceRef.current;
+    if (!m) return;
+
+    // Mostrar/ocultar marcadores según provincia
+    for (const { marker, provincia } of markersRef.current) {
+      const visible = !focusProvincia || provincia === focusProvincia;
+      if (visible) {
+        if (!m.hasLayer(marker)) marker.addTo(m);
+      } else {
+        if (m.hasLayer(marker)) m.removeLayer(marker);
+      }
+    }
+
+    if (focusProvincia) {
+      // Zoom a la provincia
+      const coords = PROVINCIAS_PANAMA[focusProvincia];
+      if (coords) m.flyTo(coords, 10, { duration: 0.8 });
+    } else {
+      // Deseleccionado → volver a la vista panorámica
+      const bounds = initialBoundsRef.current;
+      if (bounds && bounds.length > 0) {
+        m.flyToBounds(bounds as [number, number][], { padding: [30, 30], duration: 0.8 });
+      } else {
+        m.flyTo(PANAMA_CENTER, PANAMA_ZOOM, { duration: 0.8 });
+      }
+    }
+  }, [focusProvincia]);
 
   const sinUbicar = pdvs.length - ubicados;
 

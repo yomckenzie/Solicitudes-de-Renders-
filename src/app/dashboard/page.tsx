@@ -5,13 +5,13 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  TrendingUp,
   Activity,
   ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase";
-import { PanamaMapa, type PdvMapaItem } from "@/components/PanamaMapa";
+import type { PdvMapaItem } from "@/components/PanamaMapa";
+import { DashboardMapaSection } from "@/components/DashboardMapaSection";
 
 type PdvRow = {
   id: string;
@@ -255,34 +255,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Mapa de PDV */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <TrendingUp size={20} className="text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Mapa de Puntos de Venta — Panamá</h2>
-          <span className="ml-auto text-xs text-gray-400">Click en un marcador para ver el PDV</span>
-        </div>
-
-        <PanamaMapa pdvs={pdvsMapa} />
-
-        {/* Resumen por provincia */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mt-5 pt-5 border-t border-gray-100">
-          {Object.entries(provinciaMap)
-            .sort((a, b) => b[1].total - a[1].total)
-            .map(([prov, info]) => (
-              <Link
-                key={prov}
-                href={`/dashboard/pdv?provincia=${encodeURIComponent(prov)}`}
-                className="text-center rounded-lg border border-gray-200 p-2 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-              >
-                <p className="text-lg font-bold text-gray-800">{info.total}</p>
-                <p className="text-[10px] font-medium text-gray-500 leading-tight truncate">{prov}</p>
-                {info.critico > 0 && (
-                  <p className="text-[10px] text-red-500 font-medium">⚠ {info.critico}</p>
-                )}
-              </Link>
-            ))}
-        </div>
-      </div>
+      <DashboardMapaSection pdvsMapa={pdvsMapa} provinciaMap={provinciaMap} />
 
       {/* Activity + Critical PDVs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -9,9 +9,20 @@ export async function GET(req: NextRequest) {
   const marca = searchParams.get("marca");
   const q = searchParams.get("q");
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-  const pageSize = 50;
+  const lite = searchParams.get("lite") === "true";
+  const pageSize = lite ? 500 : 50;
 
   try {
+    // Modo lite: id + número + cadena + zona + provincia, sin paginación completa
+    if (lite) {
+      const { data, error } = await supabaseAdmin
+        .from("puntos_de_venta")
+        .select("id, numeroPdv, cadena, mallZona, provincia")
+        .order("numeroPdv", { ascending: true });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ data, total: data?.length ?? 0 });
+    }
+
     let query = supabaseAdmin.from("puntos_de_venta").select("*", { count: "exact" });
     if (provincia) query = query.eq("provincia", provincia);
     if (cadena) query = query.eq("cadena", cadena);

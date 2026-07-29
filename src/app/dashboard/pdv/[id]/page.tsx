@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Search, ArrowLeft, Edit2, Filter } from "lucide-react";
+import { Search, ArrowLeft, Edit2, Filter, ClipboardList, Plus } from "lucide-react";
 import { MARCA_LABELS, ESTADO_SOLICITUD_LABELS } from "@/types";
 
 type Mueble = {
@@ -33,6 +33,17 @@ type Solicitud = {
   createdAt: string;
 };
 
+type TareaVinculada = {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  estado: "Pendiente" | "En Progreso" | "Completada";
+  prioridad: "Alta" | "Media" | "Baja";
+  asignadaA: string;
+  fechaLimite: string | null;
+  createdAt: string;
+};
+
 type DetallePdv = {
   pdv: {
     id: string;
@@ -49,6 +60,7 @@ type DetallePdv = {
   ultimaVisita: Visita | null;
   visitas: Visita[];
   solicitudes: Solicitud[];
+  tareas: TareaVinculada[];
   cotizaciones: any[];
   pagos: any[];
 };
@@ -136,7 +148,7 @@ export default function PdvDetallePage() {
     return <div className="p-8 text-red-500">PDV no encontrado.</div>;
   }
 
-  const { pdv, mobiliarios, totalMobiliarios, ultimaVisita, visitas = [], solicitudes = [], cotizaciones, pagos } = data;
+  const { pdv, mobiliarios, totalMobiliarios, ultimaVisita, visitas = [], solicitudes = [], tareas = [], cotizaciones, pagos } = data;
 
   const filtered = mobiliarios.filter(m => {
     const s = search.toLowerCase();
@@ -505,6 +517,77 @@ export default function PdvDetallePage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{v.observacion || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Tareas Asociadas */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <ClipboardList size={18} className="text-blue-600" />
+              Tareas Asociadas
+              <span className="ml-1 text-sm font-normal text-gray-500">({tareas.length})</span>
+            </h2>
+            <button
+              onClick={() => router.push(`/dashboard/tareas?pdvId=${id}`)}
+              className="flex items-center gap-1 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Plus size={14} />
+              Nueva tarea
+            </button>
+          </div>
+          {tareas.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
+              No hay tareas vinculadas a este PDV.
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Título</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Estado</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Prioridad</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Asignada a</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Fecha límite</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {tareas.map((t) => (
+                    <tr key={t.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-800">{t.titulo}</p>
+                        {t.descripcion && (
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{t.descripcion}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          t.estado === "Completada" ? "bg-green-100 text-green-700" :
+                          t.estado === "En Progreso" ? "bg-blue-100 text-blue-700" :
+                          "bg-gray-100 text-gray-700"
+                        }`}>
+                          {t.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          t.prioridad === "Alta" ? "bg-red-100 text-red-700" :
+                          t.prioridad === "Media" ? "bg-yellow-100 text-yellow-700" :
+                          "bg-green-100 text-green-700"
+                        }`}>
+                          {t.prioridad}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-sm">{t.asignadaA}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {t.fechaLimite ? formatDate(t.fechaLimite) : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

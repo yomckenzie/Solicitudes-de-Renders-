@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: mobErr.message }, { status: 500 });
     }
 
-    const [visitasRes, solicitudesRes] = await Promise.all([
+    const [visitasRes, solicitudesRes, tareasRes] = await Promise.all([
       supabaseAdmin
         .from("visitas")
         .select("id, fecha, observacion, estadoEspacio, fotos, usuarios(nombre)")
@@ -42,11 +42,18 @@ export async function GET(
         .eq("pdvId", id)
         .order("createdAt", { ascending: false })
         .limit(10),
+      supabaseAdmin
+        .from("tareas")
+        .select("id, titulo, descripcion, estado, prioridad, asignadaA, fechaLimite, createdAt")
+        .eq("pdvId", id)
+        .order("createdAt", { ascending: false })
+        .limit(20),
     ]);
 
     const visitas = visitasRes.data || [];
     const ultimaVisita = visitas[0] ?? null;
     const solicitudes = solicitudesRes.data || [];
+    const tareas = tareasRes.data || [];
 
     return NextResponse.json({
       pdv,
@@ -54,6 +61,7 @@ export async function GET(
       ultimaVisita,
       visitas,
       solicitudes,
+      tareas,
       cotizaciones: [],
       pagos: [],
       totalMobiliarios: mobiliarios?.length ?? 0,

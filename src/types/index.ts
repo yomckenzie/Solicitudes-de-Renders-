@@ -79,3 +79,22 @@ export const ROL_LABELS: Record<Rol, string> = {
   impulsador: "Impulsador",
   contabilidad: "Contabilidad",
 };
+
+// Tareas (kanban) ------------------------------------------------------
+export type TareaEstado = "Pendiente" | "En Progreso" | "Completada";
+export type TareaPrioridad = "Alta" | "Media" | "Baja";
+
+export interface Tarea {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  asignadaA: string;
+  creadaPor: string;
+  estado: TareaEstado;
+  prioridad: TareaPrioridad;
+  fechaLimite: string | null;
+  solicitudId: string | null;
+  pdvId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

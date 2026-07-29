@@ -29,16 +29,29 @@ const MALLS: { keywords: string[]; coords: LatLng }[] = [
   { keywords: ["plaza mirage"], coords: [8.982, -79.518] },
   { keywords: ["dorado"], coords: [9.02, -79.53] },
   { keywords: ["hato montaña", "hato montana"], coords: [9.13, -79.55] },
+  { keywords: ["multicentro"], coords: [8.99, -79.52] },
+  { keywords: ["milla 8"], coords: [9.10, -79.50] },
+  { keywords: ["las acacias"], coords: [8.97, -79.53] },
+  { keywords: ["las cumbres"], coords: [9.10, -79.54] },
+  { keywords: ["condado del rey"], coords: [9.07, -79.53] },
+  { keywords: ["transistmica", "transístmica"], coords: [9.04, -79.52] },
+  { keywords: ["el lago"], coords: [9.08, -79.39] },
   // Panamá Oeste
   { keywords: ["westland"], coords: [8.923, -79.69] },
   { keywords: ["coronado"], coords: [8.53, -79.95] },
   { keywords: ["burunga"], coords: [8.94, -79.67] },
   { keywords: ["arraijan", "arraiján"], coords: [8.9517, -79.6608] },
   { keywords: ["chorrera"], coords: [8.8803, -79.7833] },
+  { keywords: ["vista alegre"], coords: [8.92, -79.70] },
+  { keywords: ["ojo de agua"], coords: [8.86, -79.78] },
+  // Panamá Este
+  { keywords: ["chepo"], coords: [9.17, -79.10] },
   // Chiriquí
   { keywords: ["federal mall", "federal"], coords: [8.41, -82.43] },
   { keywords: ["paso canoa", "paso canoas"], coords: [8.53, -82.84] },
   { keywords: ["david", "chiriqui", "chiriquí"], coords: [8.4333, -82.4333] },
+  { keywords: ["boquete"], coords: [8.78, -82.43] },
+  { keywords: ["puerto armuelles", "prto arm"], coords: [8.28, -82.87] },
   // Veraguas
   { keywords: ["santiago"], coords: [8.1003, -80.9833] },
   // Herrera
@@ -49,12 +62,14 @@ const MALLS: { keywords: string[]; coords: LatLng }[] = [
   // Colón
   { keywords: ["4 altos", "cuatro altos"], coords: [9.334, -79.877] },
   { keywords: ["colon", "colón"], coords: [9.3592, -79.9014] },
+  { keywords: ["cativa", "cativá"], coords: [9.36, -79.83] },
   // Bocas del Toro
   { keywords: ["bocas"], coords: [9.34, -82.24] },
+  { keywords: ["changuinola"], coords: [9.44, -82.52] },
 ];
 
 // Fallback por provincia (centro de la ciudad principal)
-const PROVINCIAS: Record<string, LatLng> = {
+export const PROVINCIAS_PANAMA: Record<string, LatLng> = {
   "Panamá": [8.9824, -79.5199],
   "Chorrera": [8.8803, -79.7833],
   "Arraijan": [8.9517, -79.6608],
@@ -85,7 +100,7 @@ export function geocodePdv(mallZona: string | null, provincia: string | null, se
   }
 
   if (!base && provincia) {
-    base = PROVINCIAS[provincia] ?? null;
+    base = PROVINCIAS_PANAMA[provincia] ?? null;
   }
 
   if (!base) return null;
