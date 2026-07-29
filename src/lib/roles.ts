@@ -50,11 +50,30 @@ export const MODULE_PERMISSIONS: Record<string, Rol[]> = {
   instalaciones: ["admin", "coordinadora", "proveedor"],
   renders: ["admin", "disenador", "mercadeo", "coordinadora"],
   visitas: ["admin", "impulsador", "coordinadora"],
-  tareas: ["admin", "disenador", "coordinadora"],
+  tareas: ["admin", "coordinadora", "disenador"],
   reportes: ["admin", "coordinadora", "contabilidad"],
   usuarios: ["admin"],
 };
 
 export async function canAccessModule(module: keyof typeof MODULE_PERMISSIONS): Promise<boolean> {
   return hasRole(MODULE_PERMISSIONS[module]);
+}
+
+// Personas que pueden CREAR/ASIGNAR tareas (independiente del rol del módulo):
+// admins + Andrea + Yarrisa
+export const TAREA_CREATOR_NAMES = ["Andrea", "Yarrisa"] as const;
+
+// Asignados válidos para una tarea (solo Yovanni y Javier).
+export const TAREA_VALID_ASSIGNEES = ["Yovanni", "Javier"] as const;
+
+export async function canCreateTarea(): Promise<CurrentUser | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  if (user.rol === "admin") return user;
+  if ((TAREA_CREATOR_NAMES as readonly string[]).includes(user.name)) return user;
+  return null;
+}
+
+export function isValidTareaAssignee(name: string): boolean {
+  return (TAREA_VALID_ASSIGNEES as readonly string[]).includes(name);
 }

@@ -1,26 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, X, ClipboardList, AlertCircle, Copy, Check } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Plus, X, ClipboardList, AlertCircle, Copy, Check, MapPin, Search } from "lucide-react";
+import type { Tarea } from "@/types";
 
-type Tarea = {
+type PdvLite = {
   id: string;
-  titulo: string;
-  descripcion: string | null;
-  asignadaA: string;
-  creadaPor: string;
-  estado: "Pendiente" | "En Progreso" | "Completada";
-  prioridad: "Alta" | "Media" | "Baja";
-  fechaLimite: string | null;
-  solicitudId: string | null;
-  createdAt: string;
+  numeroPdv: number | null;
+  cadena: string | null;
+  mallZona: string | null;
+  provincia: string | null;
 };
 
 const ESTADOS = ["Pendiente", "En Progreso", "Completada"] as const;
 const PRIORIDADES = ["Alta", "Media", "Baja"] as const;
-const ASIGNADOS = ["Yovanni", "Yarrisa", "Lorena Pinto", "Isis Ramirez", "Alcibiades Tenorio"];
-const CREADORES = ["Yarrisa", "Admin", "ilad", "Mercadeo"];
+// Solo se permite asignar tareas a Yovanni o Javier
+const ASIGNADOS = ["Yovanni", "Javier"] as const;
+// Creadores válidos (Andrea, Yarrisa, administradores)
+const CREADORES_VALIDOS = ["Andrea", "Yarrisa"] as const;
+const puedeCrearTarea = (rol: string | undefined, name: string | undefined) =>
+  rol === "admin" || (name !== undefined && (CREADORES_VALIDOS as readonly string[]).includes(name));
+// Lista para el select de "Creada por": muestra el usuario logueado si está permitido,
+// o los creadores válidos permitidos.
+const CREADORES = Array.from(
+  new Set([...CREADORES_VALIDOS, "Admin"])
+);
 
 const prioridadColor: Record<string, string> = {
   Alta: "bg-red-100 text-red-700 border border-red-200",
@@ -52,6 +58,7 @@ CREATE TABLE IF NOT EXISTS tareas (
 );`;
 
 export default function TareasPage() {
+  const { data: session, status } = useSession();
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
@@ -60,6 +67,14 @@ export default function TareasPage() {
   const [saving, setSaving] = useState(false);
   const [detailTarea, setDetailTarea] = useState<Tarea | null>(null);
   const [solicitudes, setSolicitudes] = useState<{ id: string; label: string }[]>([]);
+  const [pdvs, setPdvs] = useState<PdvLite[]>([]);
+  const [filtroCadena, setFiltroCadena] = useState("");
+  const [filtroProvincia, setFiltroProvincia] = useState("");
+  const [filtroAlmacen, setFiltroAlmacen] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const sessionName = session?.user?.name;
+  const sessionRol = session?.user?.rol;
+  const canCreate = puedeCrearTarea(sessionRol, sessionName);
   const [form, setForm] = useState({
     titulo: "",
     descripcion: "",
@@ -68,7 +83,14 @@ export default function TareasPage() {
     prioridad: "Media" as "Alta" | "Media" | "Baja",
     fechaLimite: "",
     solicitudId: "",
+    pdvId: "",
   });
+
+  useEffect(() => {
+    if (status === "authenticated" && sessionName) {
+      setForm(f => ({ ...f, creadaPor: sessionName }));
+    }
+  }, [status, sessionName]);
 
   useEffect(() => {
     fetchTareas();
@@ -80,6 +102,19 @@ export default function TareasPage() {
           label: `Sol. ${String(s.id as string).slice(0, 6)} — ${s.tipo} ${s.marca ?? ""}`.trim(),
         }));
         setSolicitudes(list);
+      })
+      .catch(() => {});
+    fetch("/api/pdv?lite=true")
+      .then(r => r.json())
+      .then(j => {
+        const list: PdvLite[] = (j.data || []).map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          numeroPdv: (p.numeroPdv as number | null) ?? null,
+          cadena: (p.cadena as string | null) ?? null,
+          mallZona: (p.mallZona as string | null) ?? null,
+          provincia: (p.provincia as string | null) ?? null,
+        }));
+        setPdvs(list);
       })
       .catch(() => {});
   }, []);
@@ -103,6 +138,10 @@ export default function TareasPage() {
 
   const handleSave = async () => {
     if (!form.titulo) return;
+    if (!form.pdvId) {
+      alert("Debes seleccionar un punto de venta para la tarea.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/tareas", {
@@ -116,7 +155,7 @@ export default function TareasPage() {
         return;
       }
       setShowModal(false);
-      setForm({ titulo: "", descripcion: "", asignadaA: "Yovanni", creadaPor: "Yarrisa", prioridad: "Media", fechaLimite: "", solicitudId: "" });
+      setForm({ titulo: "", descripcion: "", asignadaA: "Yovanni", creadaPor: sessionName || "Yarrisa", prioridad: "Media", fechaLimite: "", solicitudId: "", pdvId: "" });
       fetchTareas();
     } catch (e) {
       alert(String(e));
@@ -135,6 +174,16 @@ export default function TareasPage() {
     fetchTareas();
   };
 
+  const handleChangePdv = async (id: string, pdvId: string) => {
+    await fetch(`/api/tareas/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pdvId: pdvId || null }),
+    });
+    setDetailTarea(prev => prev ? { ...prev, pdvId: pdvId || null } : null);
+    fetchTareas();
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar esta tarea?")) return;
     await fetch(`/api/tareas/${id}`, { method: "DELETE" });
@@ -148,11 +197,63 @@ export default function TareasPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const byEstado = (estado: string) => tareas.filter(t => t.estado === estado);
+  // Opciones únicas derivadas de los PDVs cargados (declaradas ANTES de byEstado para evitar TDZ)
+  const cadenasUnicas = useMemo(
+    () => Array.from(new Set(pdvs.map(p => p.cadena).filter(Boolean))).sort() as string[],
+    [pdvs]
+  );
+  const provinciasUnicas = useMemo(
+    () => Array.from(new Set(pdvs.map(p => p.provincia).filter(Boolean))).sort() as string[],
+    [pdvs]
+  );
+  const almacenesUnicos = useMemo(() => {
+    const filtradosPorCadenaYProv = pdvs.filter(p => {
+      if (filtroCadena && p.cadena !== filtroCadena) return false;
+      if (filtroProvincia && p.provincia !== filtroProvincia) return false;
+      return true;
+    });
+    return Array.from(new Set(filtradosPorCadenaYProv.map(p => p.mallZona).filter(Boolean))).sort() as string[];
+  }, [pdvs, filtroCadena, filtroProvincia]);
+
+  // Tareas filtradas (cruza tarea.pdvId con el PDV para aplicar cadena / provincia / almacén)
+  const tareasFiltradas = useMemo(() => {
+    return tareas.filter(t => {
+      const pdv = t.pdvId ? pdvs.find(p => p.id === t.pdvId) : null;
+      // Si la tarea no tiene PDV y hay algún filtro activo, la ocultamos
+      if (!pdv && (filtroCadena || filtroProvincia || filtroAlmacen || busqueda)) return false;
+      if (filtroCadena && pdv?.cadena !== filtroCadena) return false;
+      if (filtroProvincia && pdv?.provincia !== filtroProvincia) return false;
+      if (filtroAlmacen && pdv?.mallZona !== filtroAlmacen) return false;
+      if (busqueda) {
+        const q = busqueda.toLowerCase();
+        const matchTitulo = t.titulo.toLowerCase().includes(q);
+        const matchDesc = t.descripcion?.toLowerCase().includes(q);
+        const matchPdv = pdv
+          ? `PDV-${pdv.numeroPdv}`.toLowerCase().includes(q) ||
+            pdv.cadena?.toLowerCase().includes(q) ||
+            pdv.mallZona?.toLowerCase().includes(q)
+          : false;
+        if (!matchTitulo && !matchDesc && !matchPdv) return false;
+      }
+      return true;
+    });
+  }, [tareas, pdvs, filtroCadena, filtroProvincia, filtroAlmacen, busqueda]);
+
+  const byEstado = (estado: string) => tareasFiltradas.filter(t => t.estado === estado);
 
   const totalPendiente = byEstado("Pendiente").length;
   const totalEnProgreso = byEstado("En Progreso").length;
   const totalCompletada = byEstado("Completada").length;
+
+  const limpiarFiltros = () => {
+    setFiltroCadena("");
+    setFiltroProvincia("");
+    setFiltroAlmacen("");
+    setBusqueda("");
+  };
+
+  const filtrosActivos =
+    !!filtroCadena || !!filtroProvincia || !!filtroAlmacen || !!busqueda;
 
   if (needsSetup) {
     return (
@@ -206,13 +307,19 @@ export default function TareasPage() {
           <h1 className="text-2xl font-bold text-gray-900">Tareas</h1>
           <p className="text-gray-500 mt-1">Gestión de tareas asignadas al equipo de diseño</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus size={16} />
-          Nueva Tarea
-        </button>
+        {canCreate ? (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} />
+            Nueva Tarea
+          </button>
+        ) : (
+          <span className="text-xs text-gray-500 italic">
+            Solo Andrea, Yarrisa o administradores pueden asignar tareas.
+          </span>
+        )}
       </div>
 
       {/* KPI summary */}
@@ -229,6 +336,54 @@ export default function TareasPage() {
           <p className="text-2xl font-bold text-green-700">{totalCompletada}</p>
           <p className="text-xs text-green-500 mt-1">Completadas</p>
         </div>
+      </div>
+
+      {/* Barra de filtros */}
+      <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 flex-1 min-w-[200px]">
+          <Search size={14} className="text-gray-400" />
+          <input
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por título, descripción, PDV..."
+            className="text-sm outline-none bg-transparent flex-1"
+          />
+        </div>
+        <select
+          value={filtroCadena}
+          onChange={e => { setFiltroCadena(e.target.value); setFiltroAlmacen(""); }}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="">Todas las cadenas</option>
+          {cadenasUnicas.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
+          value={filtroProvincia}
+          onChange={e => { setFiltroProvincia(e.target.value); setFiltroAlmacen(""); }}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="">Todas las provincias</option>
+          {provinciasUnicas.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select
+          value={filtroAlmacen}
+          onChange={e => setFiltroAlmacen(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="">Todos los almacenes</option>
+          {almacenesUnicos.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        {filtrosActivos && (
+          <button
+            onClick={limpiarFiltros}
+            className="text-xs text-gray-600 hover:text-red-600 px-2 py-1.5 border border-gray-200 rounded-lg"
+          >
+            Limpiar filtros
+          </button>
+        )}
+        <span className="text-xs text-gray-500 ml-auto">
+          Mostrando {tareasFiltradas.length} de {tareas.length}
+        </span>
       </div>
 
       {/* Kanban board */}
@@ -248,32 +403,48 @@ export default function TareasPage() {
                   Sin tareas
                 </div>
               ) : (
-                byEstado(estado).map(tarea => (
-                  <button
-                    key={tarea.id}
-                    onClick={() => setDetailTarea(tarea)}
-                    className="w-full text-left bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-blue-300 transition-all space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-gray-800 leading-snug">{tarea.titulo}</p>
-                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${prioridadColor[tarea.prioridad]}`}>
-                        {tarea.prioridad}
-                      </span>
-                    </div>
-                    {tarea.descripcion && (
-                      <p className="text-xs text-gray-500 line-clamp-2">{tarea.descripcion}</p>
-                    )}
-                    <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
-                      <span className="flex items-center gap-1">
-                        <ClipboardList size={11} />
-                        {tarea.asignadaA}
-                      </span>
-                      {tarea.fechaLimite && (
-                        <span>{new Date(tarea.fechaLimite).toLocaleDateString("es-PA")}</span>
+                byEstado(estado).map(tarea => {
+                  const pdvVinculado = tarea.pdvId
+                    ? pdvs.find(p => p.id === tarea.pdvId)
+                    : null;
+                  return (
+                    <button
+                      key={tarea.id}
+                      onClick={() => setDetailTarea(tarea)}
+                      className="w-full text-left bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-blue-300 transition-all space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-800 leading-snug">{tarea.titulo}</p>
+                        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${prioridadColor[tarea.prioridad]}`}>
+                          {tarea.prioridad}
+                        </span>
+                      </div>
+                      {tarea.descripcion && (
+                        <p className="text-xs text-gray-500 line-clamp-2">{tarea.descripcion}</p>
                       )}
-                    </div>
-                  </button>
-                ))
+                      {pdvVinculado && (
+                        <Link
+                          href={`/dashboard/pdv/${tarea.pdvId}`}
+                          onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 max-w-full truncate"
+                          title={`PDV-${pdvVinculado.numeroPdv} · ${pdvVinculado.cadena} (${pdvVinculado.mallZona})`}
+                        >
+                          <MapPin size={10} />
+                          {`PDV-${pdvVinculado.numeroPdv} · ${pdvVinculado.cadena ?? ""}`}
+                        </Link>
+                      )}
+                      <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+                        <span className="flex items-center gap-1">
+                          <ClipboardList size={11} />
+                          {tarea.asignadaA}
+                        </span>
+                        {tarea.fechaLimite && (
+                          <span>{new Date(tarea.fechaLimite).toLocaleDateString("es-PA")}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
           ))}
@@ -325,13 +496,13 @@ export default function TareasPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Creada por</label>
-                <select
+                <input
+                  type="text"
                   value={form.creadaPor}
-                  onChange={e => setForm(f => ({ ...f, creadaPor: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {CREADORES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
+                  title="El creador siempre es el usuario autenticado"
+                />
               </div>
             </div>
 
@@ -373,6 +544,25 @@ export default function TareasPage() {
               </div>
             )}
 
+            {pdvs.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Punto de venta <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={form.pdvId}
+                  onChange={e => setForm(f => ({ ...f, pdvId: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecciona un PDV…</option>
+                  {pdvs.map(p => (
+                    <option key={p.id} value={p.id}>{`PDV-${p.numeroPdv} · ${p.cadena ?? ""}${p.mallZona ? ` (${p.mallZona})` : ""}`}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
               <button
                 onClick={() => setShowModal(false)}
@@ -382,7 +572,7 @@ export default function TareasPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !form.titulo}
+                disabled={saving || !form.titulo || !form.pdvId}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 {saving ? "Guardando..." : "Guardar"}
@@ -445,6 +635,33 @@ export default function TareasPage() {
                     </Link>
                   </div>
                 )}
+                {detailTarea.pdvId && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500">Punto de venta</p>
+                    <Link
+                      href={`/dashboard/pdv/${detailTarea.pdvId}`}
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                    >
+                      <MapPin size={12} />
+                      Ver PDV →
+                    </Link>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Reasignar PDV
+                  </label>
+                  <select
+                    value={detailTarea.pdvId ?? ""}
+                    onChange={e => handleChangePdv(detailTarea.id, e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selecciona un PDV…</option>
+                    {pdvs.map(p => (
+                      <option key={p.id} value={p.id}>{`PDV-${p.numeroPdv} · ${p.cadena ?? ""}${p.mallZona ? ` (${p.mallZona})` : ""}`}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
