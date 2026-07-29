@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import {
-  canCreateTarea,
-  isValidTareaAssignee,
-  TAREA_VALID_ASSIGNEES,
-} from "@/lib/roles";
+import { canCreateTarea, getAssignableNames } from "@/lib/roles";
 
 export async function GET() {
   try {
@@ -31,7 +27,7 @@ export async function POST(req: NextRequest) {
     const user = await canCreateTarea();
     if (!user) {
       return NextResponse.json(
-        { error: "No tienes permiso para crear tareas. Solo Andrea, Yarrisa o administradores pueden asignar tareas." },
+        { error: "No tienes permiso para crear tareas. Solo coordinadoras o administradores pueden asignar tareas." },
         { status: 403 }
       );
     }
@@ -46,10 +42,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Faltan campos requeridos: pdvId (la tarea debe estar vinculada a un punto de venta)" }, { status: 400 });
     }
 
-    // Asignado solo puede ser Yovanni o Javier
-    const asignadaFinal = asignadaA && isValidTareaAssignee(asignadaA)
-      ? asignadaA
-      : TAREA_VALID_ASSIGNEES[0];
+    // Admin puede asignar a cualquier usuario activo; coordinadora solo a diseñadores.
+    const asignables = await getAssignableNames(user);
+    if (asignables.length === 0) {
+      return NextResponse.json(
+        { error: "No hay usuarios disponibles para asignar la tarea." },
+        { status: 409 }
+      );
+    }
+    if (asignadaA && !asignables.includes(asignadaA)) {
+      return NextResponse.json(
+        { error: `Asignado inválido: "${asignadaA}". Permitidos: ${asignables.join(", ")}.` },
+        { status: 400 }
+      );
+    }
+    const asignadaFinal = asignadaA || asignables[0];
 
     // El creador SIEMPRE es el usuario autenticado (no confiamos en el cliente)
     const creadorFinal = user.name;

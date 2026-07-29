@@ -53,13 +53,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </>
       )}
 
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 bg-gray-900 text-white flex-col min-h-screen shrink-0 sticky top-0 h-screen">
+      {/* Desktop sidebar — fixed para que no dependa del contexto de scroll */}
+      <aside className="hidden md:flex fixed top-0 left-0 bottom-0 z-30 w-64 bg-gray-900 text-white flex-col">
         <SidebarContent />
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
+      {/* Main content — ml-64 compensa el sidebar fixed (fuera de flujo) */}
+      <main className="flex-1 min-w-0 pt-14 md:pt-0 md:ml-64">{children}</main>
     </div>
   );
 }

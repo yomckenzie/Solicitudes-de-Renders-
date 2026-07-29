@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { canCreateTarea, isValidTareaAssignee } from "@/lib/roles";
+import { canCreateTarea, getAssignableNames } from "@/lib/roles";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,29 +11,31 @@ export async function PATCH(
     const body = await req.json();
     const { estado, titulo, descripcion, prioridad, fechaLimite, pdvId, asignadaA } = body;
 
-    // Solo Andrea/Yarrisa/admin pueden cambiar la asignación o editar contenido.
+    // Solo coordinadoras/admin pueden cambiar la asignación o editar contenido.
     // Cambiar de estado (Pendiente → En Progreso → Completada) lo puede hacer
     // cualquier persona con rol permitido para acceder al módulo.
     const isReassignment = asignadaA !== undefined;
     const isContentEdit = titulo !== undefined || descripcion !== undefined || prioridad !== undefined || fechaLimite !== undefined || pdvId !== undefined;
-    const isStatusOnly = !isReassignment && !isContentEdit && estado !== undefined;
 
     if (isReassignment || isContentEdit) {
       const user = await canCreateTarea();
       if (!user) {
         return NextResponse.json(
-          { error: "No tienes permiso para modificar tareas. Solo Andrea, Yarrisa o administradores." },
+          { error: "No tienes permiso para modificar tareas. Solo coordinadoras o administradores." },
           { status: 403 }
         );
       }
-    }
 
-    // Si cambian el asignado, validar que sea Yovanni o Javier
-    if (asignadaA !== undefined && !isValidTareaAssignee(asignadaA)) {
-      return NextResponse.json(
-        { error: `Asignado inválido. Solo se permite: Yovanni o Javier.` },
-        { status: 400 }
-      );
+      // Admin reasigna a cualquier usuario activo; coordinadora solo a diseñadores.
+      if (isReassignment) {
+        const asignables = await getAssignableNames(user);
+        if (!asignables.includes(asignadaA)) {
+          return NextResponse.json(
+            { error: `Asignado inválido: "${asignadaA}". Permitidos: ${asignables.join(", ")}.` },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
@@ -68,7 +70,7 @@ export async function DELETE(
     const user = await canCreateTarea();
     if (!user) {
       return NextResponse.json(
-        { error: "No tienes permiso para eliminar tareas. Solo Andrea, Yarrisa o administradores." },
+        { error: "No tienes permiso para eliminar tareas. Solo coordinadoras o administradores." },
         { status: 403 }
       );
     }

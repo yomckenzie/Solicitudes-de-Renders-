@@ -16,17 +16,35 @@ type PdvLite = {
 
 const ESTADOS = ["Pendiente", "En Progreso", "Completada"] as const;
 const PRIORIDADES = ["Alta", "Media", "Baja"] as const;
-// Solo se permite asignar tareas a Yovanni o Javier
-const ASIGNADOS = ["Yovanni", "Javier"] as const;
-// Creadores válidos (Andrea, Yarrisa, administradores)
-const CREADORES_VALIDOS = ["Andrea", "Yarrisa"] as const;
-const puedeCrearTarea = (rol: string | undefined, name: string | undefined) =>
-  rol === "admin" || (name !== undefined && (CREADORES_VALIDOS as readonly string[]).includes(name));
-// Lista para el select de "Creada por": muestra el usuario logueado si está permitido,
-// o los creadores válidos permitidos.
-const CREADORES = Array.from(
-  new Set([...CREADORES_VALIDOS, "Admin"])
-);
+
+// Solo coordinadoras y administradores pueden crear / reasignar / eliminar tareas.
+// Cuando entra o sale gente del equipo, basta con ajustar el rol en `usuarios` —
+// este UI ya no depende de nombres propios.
+const TAREA_ASSIGNEE_ROLES_CLIENT = ["disenador"] as const;
+type SessionRolLike = string | undefined;
+const canCreateTareaRolClient = (rol: SessionRolLike): boolean =>
+  rol === "admin" || rol === "coordinadora";
+
+// Filtra la lista de usuarios activos según el rol del actor:
+//   admin        → todos los usuarios activos
+//   coordinadora → solo diseñadores (TAREA_ASSIGNEE_ROLES)
+//   otros        → ninguno
+function computeAssignable(
+  usuarios: { nombre: string; rol: string; activo: boolean }[],
+  rol: SessionRolLike
+): string[] {
+  const activos = usuarios.filter(u => u.activo);
+  if (rol === "admin") {
+    return activos.map(u => u.nombre).sort();
+  }
+  if (rol === "coordinadora") {
+    return activos
+      .filter(u => (TAREA_ASSIGNEE_ROLES_CLIENT as readonly string[]).includes(u.rol))
+      .map(u => u.nombre)
+      .sort();
+  }
+  return [];
+}
 
 const prioridadColor: Record<string, string> = {
   Alta: "bg-red-100 text-red-700 border border-red-200",
@@ -68,18 +86,23 @@ export default function TareasPage() {
   const [detailTarea, setDetailTarea] = useState<Tarea | null>(null);
   const [solicitudes, setSolicitudes] = useState<{ id: string; label: string }[]>([]);
   const [pdvs, setPdvs] = useState<PdvLite[]>([]);
+  const [usuarios, setUsuarios] = useState<{ nombre: string; rol: string; activo: boolean }[]>([]);
   const [filtroCadena, setFiltroCadena] = useState("");
   const [filtroProvincia, setFiltroProvincia] = useState("");
   const [filtroAlmacen, setFiltroAlmacen] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const sessionName = session?.user?.name;
   const sessionRol = session?.user?.rol;
-  const canCreate = puedeCrearTarea(sessionRol, sessionName);
+  const canCreate = canCreateTareaRolClient(sessionRol);
+  const assignable = useMemo(
+    () => computeAssignable(usuarios, sessionRol),
+    [usuarios, sessionRol]
+  );
   const [form, setForm] = useState({
     titulo: "",
     descripcion: "",
-    asignadaA: "Yovanni",
-    creadaPor: "Yarrisa",
+    asignadaA: "",
+    creadaPor: "",
     prioridad: "Media" as "Alta" | "Media" | "Baja",
     fechaLimite: "",
     solicitudId: "",
@@ -91,6 +114,13 @@ export default function TareasPage() {
       setForm(f => ({ ...f, creadaPor: sessionName }));
     }
   }, [status, sessionName]);
+
+  // Cuando carga la lista de usuarios, pre-seleccionar el primer asignable válido
+  useEffect(() => {
+    if (assignable.length > 0) {
+      setForm(f => (f.asignadaA && assignable.includes(f.asignadaA) ? f : { ...f, asignadaA: assignable[0] }));
+    }
+  }, [assignable]);
 
   useEffect(() => {
     fetchTareas();
@@ -115,6 +145,19 @@ export default function TareasPage() {
           provincia: (p.provincia as string | null) ?? null,
         }));
         setPdvs(list);
+      })
+      .catch(() => {});
+    fetch("/api/usuarios")
+      .then(r => r.json())
+      .then(j => {
+        const list: { nombre: string; rol: string; activo: boolean }[] = (j.data || []).map(
+          (u: Record<string, unknown>) => ({
+            nombre: u.nombre as string,
+            rol: (u.rol as string) ?? "",
+            activo: (u.activo as boolean) ?? false,
+          })
+        );
+        setUsuarios(list);
       })
       .catch(() => {});
   }, []);
@@ -155,7 +198,16 @@ export default function TareasPage() {
         return;
       }
       setShowModal(false);
-      setForm({ titulo: "", descripcion: "", asignadaA: "Yovanni", creadaPor: sessionName || "Yarrisa", prioridad: "Media", fechaLimite: "", solicitudId: "", pdvId: "" });
+      setForm({
+        titulo: "",
+        descripcion: "",
+        asignadaA: assignable[0] ?? "",
+        creadaPor: sessionName ?? "",
+        prioridad: "Media",
+        fechaLimite: "",
+        solicitudId: "",
+        pdvId: "",
+      });
       fetchTareas();
     } catch (e) {
       alert(String(e));
@@ -317,7 +369,7 @@ export default function TareasPage() {
           </button>
         ) : (
           <span className="text-xs text-gray-500 italic">
-            Solo Andrea, Yarrisa o administradores pueden asignar tareas.
+            Solo coordinadoras o administradores pueden asignar tareas.
           </span>
         )}
       </div>
@@ -486,13 +538,19 @@ export default function TareasPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Asignada a</label>
-                <select
-                  value={form.asignadaA}
-                  onChange={e => setForm(f => ({ ...f, asignadaA: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {ASIGNADOS.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
+                {assignable.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic px-1 py-2">
+                    No hay usuarios disponibles para asignar.
+                  </p>
+                ) : (
+                  <select
+                    value={form.asignadaA}
+                    onChange={e => setForm(f => ({ ...f, asignadaA: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {assignable.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Creada por</label>
