@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       .from("solicitudes_de_render")
       .select(`
         id, tipo, estado, marca, notas, createdAt,
-        puntos_de_venta(numeroPdv, cadena, mallZona, provincia),
+        puntos_de_venta(id, numeroPdv, cadena, mallZona, provincia),
         usuarios(nombre, rol)
       `, { count: "exact" });
 

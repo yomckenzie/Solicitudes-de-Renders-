@@ -84,7 +84,7 @@ export default function TareasPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detailTarea, setDetailTarea] = useState<Tarea | null>(null);
-  const [solicitudes, setSolicitudes] = useState<{ id: string; label: string }[]>([]);
+  const [solicitudes, setSolicitudes] = useState<{ id: string; pdvId: string | null; label: string }[]>([]);
   const [pdvs, setPdvs] = useState<PdvLite[]>([]);
   const [usuarios, setUsuarios] = useState<{ nombre: string; rol: string; activo: boolean }[]>([]);
   const [filtroCadena, setFiltroCadena] = useState("");
@@ -108,12 +108,23 @@ export default function TareasPage() {
     solicitudId: "",
     pdvId: "",
   });
+  // Si hay PDV seleccionado, solo mostramos solicitudes de ese PDV.
+  // Si no, la tarea es genérica y no se ofrece vincular solicitud.
+  const solicitudesVisibles = useMemo(
+    () => (form.pdvId ? solicitudes.filter(s => s.pdvId === form.pdvId) : []),
+    [solicitudes, form.pdvId]
+  );
 
   useEffect(() => {
     if (status === "authenticated" && sessionName) {
       setForm(f => ({ ...f, creadaPor: sessionName }));
     }
   }, [status, sessionName]);
+
+  // Si cambia el PDV, limpiar la solicitudId (sería de otro PDV)
+  useEffect(() => {
+    setForm(f => ({ ...f, solicitudId: "" }));
+  }, [form.pdvId]);
 
   // Cuando carga la lista de usuarios, pre-seleccionar el primer asignable válido
   useEffect(() => {
@@ -124,13 +135,21 @@ export default function TareasPage() {
 
   useEffect(() => {
     fetchTareas();
-    fetch("/api/solicitudes?limit=100")
+    fetch("/api/solicitudes")
       .then(r => r.json())
       .then(j => {
-        const list = (j.data || []).map((s: Record<string, unknown>) => ({
-          id: s.id as string,
-          label: `Sol. ${String(s.id as string).slice(0, 6)} — ${s.tipo} ${s.marca ?? ""}`.trim(),
-        }));
+        const list = (j.data || []).map((s: Record<string, unknown>) => {
+          const pdv = s.puntos_de_venta as Record<string, unknown> | null;
+          const pdvId = (pdv?.id as string) ?? null;
+          const pdvLabel = pdv
+            ? `PDV-${pdv.numeroPdv} · ${pdv.cadena ?? ""}${pdv.mallZona ? ` (${pdv.mallZona})` : ""}`
+            : "Sin PDV";
+          return {
+            id: s.id as string,
+            pdvId,
+            label: `Sol. ${String(s.id as string).slice(0, 6)} — ${s.tipo} ${s.marca ?? ""} · ${pdvLabel}`.trim(),
+          };
+        });
         setSolicitudes(list);
       })
       .catch(() => {});
@@ -181,10 +200,6 @@ export default function TareasPage() {
 
   const handleSave = async () => {
     if (!form.titulo) return;
-    if (!form.pdvId) {
-      alert("Debes seleccionar un punto de venta para la tarea.");
-      return;
-    }
     setSaving(true);
     try {
       const res = await fetch("/api/tareas", {
@@ -586,7 +601,7 @@ export default function TareasPage() {
               </div>
             </div>
 
-            {solicitudes.length > 0 && (
+            {form.pdvId && solicitudesVisibles.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Solicitud vinculada (opcional)</label>
                 <select
@@ -595,7 +610,7 @@ export default function TareasPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Sin solicitud</option>
-                  {solicitudes.map(s => (
+                  {solicitudesVisibles.map(s => (
                     <option key={s.id} value={s.id}>{s.label}</option>
                   ))}
                 </select>
@@ -605,15 +620,14 @@ export default function TareasPage() {
             {pdvs.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Punto de venta <span className="text-red-500">*</span>
+                  Punto de venta <span className="text-xs text-gray-400 font-normal">(opcional)</span>
                 </label>
                 <select
                   value={form.pdvId}
                   onChange={e => setForm(f => ({ ...f, pdvId: e.target.value }))}
-                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Selecciona un PDV…</option>
+                  <option value="">Sin punto de venta (tarea genérica)</option>
                   {pdvs.map(p => (
                     <option key={p.id} value={p.id}>{`PDV-${p.numeroPdv} · ${p.cadena ?? ""}${p.mallZona ? ` (${p.mallZona})` : ""}`}</option>
                   ))}
@@ -630,7 +644,7 @@ export default function TareasPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !form.titulo || !form.pdvId}
+                disabled={saving || !form.titulo}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 {saving ? "Guardando..." : "Guardar"}

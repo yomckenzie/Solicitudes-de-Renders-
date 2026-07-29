@@ -38,9 +38,8 @@ export async function POST(req: NextRequest) {
     if (!titulo) {
       return NextResponse.json({ error: "Faltan campos requeridos: titulo" }, { status: 400 });
     }
-    if (!pdvId) {
-      return NextResponse.json({ error: "Faltan campos requeridos: pdvId (la tarea debe estar vinculada a un punto de venta)" }, { status: 400 });
-    }
+    // pdvId es opcional: una tarea puede ser genérica (sin punto de venta)
+    // o estar vinculada a un PDV concreto para cruzar con solicitudes/mobiliario.
 
     // Admin puede asignar a cualquier usuario activo; coordinadora solo a diseñadores.
     const asignables = await getAssignableNames(user);
